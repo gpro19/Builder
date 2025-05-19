@@ -8,51 +8,73 @@ from telegram.ext import (
     CallbackContext,
     CallbackQueryHandler
 )
-import html
 import re
 from flask import Flask, request, jsonify
 import os
 
+app = Flask(__name__)
+
 # Setup logging
 logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', 
     level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
 # Configuration
 TOKEN = os.getenv("TELEGRAM_TOKEN")
-WEBHOOK_URL = os.getenv("WEBHOOK_URL")
-MAIN_ADMIN_ID = 7117744807
-LOG_CHANNEL = 6172467461
+if not TOKEN:
+    raise ValueError("TELEGRAM_TOKEN environment variable not set")
 
-# Simple database
+WEBHOOK_URL = os.getenv("WEBHOOK_URL")
+if not WEBHOOK_URL:
+    raise ValueError("WEBHOOK_URL environment variable not set")
+
+MAIN_ADMIN_ID = 7117744807  # Admin of the main bot
+LOG_CHANNEL = 6172467461   # Channel for logging
+
+# Improved database using dictionary with persistence
 user_db = {}
 
 class AnonymousBot:
     def __init__(self, token: str, creator_id: int):
         """Initialize an anonymous messaging bot"""
         self.token = token
-        self.creator_id = creator_id
-        self.updater = Updater(token, use_context=True)
-        self.dispatcher = self.updater.dispatcher
-        self.username = self.updater.bot.get_me().username
+        self.creator_id = creator_id  # The user who created this bot becomes admin
         
-        # Register handlers
-        self._register_handlers()
+        try:
+            self.updater = Updater(token, use_context=True)
+            self.dispatcher = self.updater.dispatcher
+            
+            # Get bot info
+            self.username = self.updater.bot.get_me().username
+            
+            # Register handlers
+            self._register_handlers()
+            
+            # Set webhook
+            webhook_url = f"{WEBHOOK_URL}/webhook/{token}"
+            self.updater.bot.set_webhook(webhook_url)
+            logger.info(f"Webhook set for bot @{self.username} to {webhook_url}")
+            
+            # Send confirmation to creator
+            self.updater.bot.send_message(
+                chat_id=creator_id,
+                text=f"✅ Bot @{self.username} berhasil diaktifkan!\n\n"
+                     f"Gunakan /settings di bot untuk mengkonfigurasinya."
+            )
+            
+        except Exception as e:
+            logger.error(f"Failed to initialize bot: {e}")
+            raise
         
-        # Set webhook
-        webhook_url = f"{WEBHOOK_URL}/webhook/{token}"
-        self.updater.bot.set_webhook(webhook_url)
-        logger.info(f"Webhook set for bot @{self.username} to {webhook_url}")
-
     def _register_handlers(self):
         """Register all handlers for the bot"""
         self.dispatcher.add_handler(CommandHandler("start", self.start))
         self.dispatcher.add_handler(CommandHandler("settings", self.settings))
         self.dispatcher.add_handler(CallbackQueryHandler(self.button_handler))
         self.dispatcher.add_handler(MessageHandler(Filters.all & ~Filters.command, self.message_handler))
-
+    
     def start(self, update: Update, context: CallbackContext):
         """Handle /start command"""
         user = update.effective_user
@@ -72,7 +94,7 @@ class AnonymousBot:
         welcome_text = user_db.get(f'startText_{self.username}', 
                                  "Halo! Selamat datang di bot menfes anonim.")
         update.message.reply_text(welcome_text)
-
+    
     def _check_subscription(self, update: Update, context: CallbackContext) -> bool:
         """Check if user is subscribed to required channel"""
         channel_id = user_db.get(f'channel_{self.username}')
@@ -93,7 +115,7 @@ class AnonymousBot:
                 update.message.reply_text("❌ Gagal memverifikasi keanggotaan channel.")
                 return False
         return True
-
+    
     def settings(self, update: Update, context: CallbackContext):
         """Handle /settings command (admin only)"""
         if update.effective_user.id != self.creator_id:
@@ -101,8 +123,8 @@ class AnonymousBot:
             return
         
         # Get current settings
-        welcome_text = user_db.get(f'startText_{self.username}', "Default welcome text")
-        auto_reply = user_db.get(f'kirimText_{self.username}', "Default auto reply")
+        welcome_text = user_db.get(f'startText_{self.username}', "Halo! Selamat datang di bot menfes anonim.")
+        auto_reply = user_db.get(f'kirimText_{self.username}', "✅ Pesan berhasil terkirim!")
         channel = user_db.get(f'channel_{self.username}')
         
         keyboard = [
@@ -128,7 +150,7 @@ class AnonymousBot:
             parse_mode='HTML',
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
-
+    
     def button_handler(self, update: Update, context: CallbackContext):
         """Handle inline button presses"""
         query = update.callback_query
@@ -146,14 +168,15 @@ class AnonymousBot:
             self._handle_fsub_settings(query)
         elif query.data.startswith('del_'):
             self._handle_delete_settings(query)
-
+    
     def _handle_settings(self, query):
         """Handle settings menu actions"""
         data = query.data
         bot_username = self.username
         
         if data == 'st_start':
-            current_text = user_db.get(f'startText_{bot_username}', "Default welcome text")
+            current_text = user_db.get(f'startText_{bot_username}', 
+                                     "Halo! Selamat datang di bot menfes anonim.")
             query.edit_message_text(
                 f"📝 <b>Set Pesan Welcome</b>\n\nPesan saat ini:\n<code>{html.escape(current_text)}</code>\n\n"
                 "Kirim pesan baru untuk mengganti:",
@@ -163,7 +186,7 @@ class AnonymousBot:
             user_db[f'editing_{bot_username}'] = 'start_text'
         
         elif data == 'st_kirim':
-            current_text = user_db.get(f'kirimText_{bot_username}', "Default auto reply")
+            current_text = user_db.get(f'kirimText_{bot_username}', "Pesan berhasil terkirim!")
             query.edit_message_text(
                 f"📩 <b>Set Pesan Auto Reply</b>\n\nPesan saat ini:\n<code>{html.escape(current_text)}</code>\n\n"
                 "Kirim pesan baru untuk mengganti:",
@@ -175,7 +198,7 @@ class AnonymousBot:
         elif data == 'st_channel':
             query.edit_message_text(
                 f"📢 <b>Connect Channel</b>\n\n"
-                f"1. Tambahkan @{bot_username} ke channel Anda sebagai admin\n"
+                f"1. Tambahkan @{bot_username} ke channel Anda sebagai admin (dengan izin posting)\n"
                 f"2. Kirim /setchanneluser di channel Anda\n"
                 f"3. Teruskan pesan tersebut ke bot ini",
                 parse_mode='HTML',
@@ -209,121 +232,7 @@ class AnonymousBot:
                 "✅ Channel berhasil diputuskan",
                 reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Kembali", callback_data='bt_start')]])
             )
-
-    def _handle_mode_settings(self, query):
-        """Handle message mode settings (text, photo, document, sticker)"""
-        mode_type = query.data.split('_')[1] if '_' in query.data else 'All'
-        bot_username = self.username
-        
-        if mode_type != 'All':
-            # Toggle the specific mode
-            current_setting = user_db.get(f'mode{mode_type}_{bot_username}', False)
-            user_db[f'mode{mode_type}_{bot_username}'] = not current_setting
-        
-        # Prepare mode names for display
-        mode_status = {
-            'Text': "✅" if not user_db.get(f'modeText_{bot_username}') else "❌",
-            'Foto': "✅" if not user_db.get(f'modeFoto_{bot_username}') else "❌",
-            'Berkas': "✅" if not user_db.get(f'modeBerkas_{bot_username}') else "❌",
-            'Sticker': "✅" if not user_db.get(f'modeSticker_{bot_username}') else "❌"
-        }
-        
-        # Update the message
-        query.edit_message_text(
-            "✉️ <b>Pengaturan Mode Kirim</b>\n\n"
-            "Pilih jenis pesan yang ingin diubah:\n\n"
-            f"Teks {mode_status['Text']}\n"
-            f"Foto {mode_status['Foto']}\n"
-            f"Dokumen {mode_status['Berkas']}\n"
-            f"Stiker {mode_status['Sticker']}",
-            parse_mode='HTML',
-            reply_markup=self._create_mode_settings_keyboard()
-        )
-
-    def _create_mode_settings_keyboard(self):
-        """Create keyboard for mode settings"""
-        return InlineKeyboardMarkup([
-            [
-                InlineKeyboardButton("Teks", callback_data='mode_Text'),
-                InlineKeyboardButton("Foto", callback_data='mode_Foto')
-            ],
-            [
-                InlineKeyboardButton("Dokumen", callback_data='mode_Berkas'),
-                InlineKeyboardButton("Stiker", callback_data='mode_Sticker')
-            ],
-            [InlineKeyboardButton("🔙 Kembali", callback_data='bt_start')]
-        ])
-
-    def _handle_pause_settings(self, query):
-        """Handle pause mode settings"""
-        action = query.data.split('_')[1]
-        bot_username = self.username
-        
-        if action == 'on':
-            user_db[f'jeda_{bot_username}'] = 'iya'
-            status = "⏸️ DIJEDA"
-        else:
-            user_db[f'jeda_{bot_username}'] = 'tidak'
-            status = "▶️ DIAKTIFKAN"
-        
-        query.edit_message_text(
-            f"⏸️ <b>Mode Jeda</b>\n\nStatus bot: {status}\n\n"
-            "Pilih aksi:",
-            parse_mode='HTML',
-            reply_markup=InlineKeyboardMarkup([
-                [
-                    InlineKeyboardButton("⏸️ Jeda Bot", callback_data='jeda_on'),
-                    InlineKeyboardButton("▶️ Aktifkan Bot", callback_data='jeda_off')
-                ],
-                [InlineKeyboardButton("🔙 Kembali", callback_data='bt_start')]
-            ])
-        )
-
-    def _handle_fsub_settings(self, query):
-        """Handle force subscription settings"""
-        action = query.data.split('_')[1]
-        bot_username = self.username
-        
-        if action == 'on':
-            user_db[f'fsub_{bot_username}'] = 'iya'
-            status = "🔗 AKTIF"
-        else:
-            user_db[f'fsub_{bot_username}'] = 'tidak'
-            status = "🚫 NONAKTIF"
-        
-        query.edit_message_text(
-            f"🔗 <b>Force Subscription</b>\n\nStatus: {status}\n\n"
-            "Pilih aksi:",
-            parse_mode='HTML',
-            reply_markup=InlineKeyboardMarkup([
-                [
-                    InlineKeyboardButton("🔗 Aktifkan", callback_data='fsub_on'),
-                    InlineKeyboardButton("🚫 Nonaktifkan", callback_data='fsub_off')
-                ],
-                [InlineKeyboardButton("🔙 Kembali", callback_data='bt_start')]
-            ])
-        )
-
-    def _handle_delete_settings(self, query):
-        """Handle auto-delete settings"""
-        action = query.data.split('_')[1] if '_' in query.data else 'set'
-        bot_username = self.username
-        
-        if action == 'set':
-            user_db[f'editing_{bot_username}'] = 'delete_time'
-            query.edit_message_text(
-                "⏱️ <b>Set Waktu Hapus Otomatis</b>\n\n"
-                "Kirim waktu dalam detik (contoh: 3600 untuk 1 jam)\n"
-                "Atau 0 untuk menonaktifkan:",
-                parse_mode='HTML',
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("🔙 Kembali", callback_data='bt_start')]
-                ])
-            )
-        else:
-            # Handle other delete actions if needed
-            pass
-
+    
     def message_handler(self, update: Update, context: CallbackContext):
         """Handle all incoming messages"""
         message = update.message
@@ -354,7 +263,7 @@ class AnonymousBot:
             self.handle_document(update, context)
         elif message.text:
             self.handle_text(update, context)
-
+    
     def _handle_admin_settings(self, update: Update, context: CallbackContext):
         """Handle admin setting updates"""
         message = update.message
@@ -387,23 +296,7 @@ class AnonymousBot:
                 except Exception as e:
                     logger.error(f"Error connecting channel: {e}")
                     update.message.reply_text("❌ Gagal memverifikasi bot sebagai admin channel.")
-        
-        elif setting_type == 'delete_time':
-            try:
-                seconds = int(message.text)
-                if seconds < 0:
-                    raise ValueError
-                
-                user_db[f'del_{self.username}'] = seconds
-                user_db.pop(f'editing_{self.username}', None)
-                
-                if seconds == 0:
-                    update.message.reply_text("✅ Auto-delete dinonaktifkan")
-                else:
-                    update.message.reply_text(f"✅ Auto-delete diatur ke {seconds} detik")
-            except ValueError:
-                update.message.reply_text("❌ Masukkan angka yang valid dalam detik (0 untuk menonaktifkan)")
-
+    
     def handle_photo(self, update: Update, context: CallbackContext):
         """Handle photo messages"""
         if user_db.get(f'modeFoto_{self.username}'):
@@ -424,12 +317,15 @@ class AnonymousBot:
             reply_text = user_db.get(f'kirimText_{self.username}', "✅ Pesan berhasil terkirim!")
             update.message.reply_text(reply_text)
             
+            # Log the message
+            self._log_message(update, "Photo", caption)
+            
             # Auto-delete if enabled
             self._auto_delete(channel_id, sent_message.message_id)
         except Exception as e:
             logger.error(f"Failed to send photo: {e}")
             update.message.reply_text("❌ Gagal mengirim foto. Silakan coba lagi.")
-
+    
     def handle_sticker(self, update: Update, context: CallbackContext):
         """Handle sticker messages"""
         if user_db.get(f'modeSticker_{self.username}'):
@@ -447,12 +343,15 @@ class AnonymousBot:
             reply_text = user_db.get(f'kirimText_{self.username}', "✅ Pesan berhasil terkirim!")
             update.message.reply_text(reply_text)
             
+            # Log the message
+            self._log_message(update, "Sticker")
+            
             # Auto-delete if enabled
             self._auto_delete(channel_id, sent_message.message_id)
         except Exception as e:
             logger.error(f"Failed to send sticker: {e}")
             update.message.reply_text("❌ Gagal mengirim stiker. Silakan coba lagi.")
-
+    
     def handle_document(self, update: Update, context: CallbackContext):
         """Handle document messages"""
         if user_db.get(f'modeBerkas_{self.username}'):
@@ -471,12 +370,15 @@ class AnonymousBot:
             reply_text = user_db.get(f'kirimText_{self.username}', "✅ Pesan berhasil terkirim!")
             update.message.reply_text(reply_text)
             
+            # Log the message
+            self._log_message(update, "Document", update.message.caption)
+            
             # Auto-delete if enabled
             self._auto_delete(channel_id, sent_message.message_id)
         except Exception as e:
             logger.error(f"Failed to send document: {e}")
             update.message.reply_text("❌ Gagal mengirim dokumen. Silakan coba lagi.")
-
+    
     def handle_text(self, update: Update, context: CallbackContext):
         """Handle text messages"""
         if (update.message.text.startswith('/') or 
@@ -494,20 +396,50 @@ class AnonymousBot:
             # Send confirmation
             reply_text = user_db.get(f'kirimText_{self.username}', "✅ Pesan berhasil terkirim!")
             update.message.reply_text(reply_text)
+
+            # Log the message
+            self._log_message(update, "Text", update.message.text)
             
             # Auto-delete if enabled
             self._auto_delete(channel_id, sent_message.message_id)
         except Exception as e:
             logger.error(f"Failed to send text message: {e}")
             update.message.reply_text("❌ Gagal mengirim pesan. Silakan coba lagi.")
-
+    
+    def _log_message(self, update: Update, msg_type: str, caption: str = ""):
+        """Log messages to channels"""
+        user = update.effective_user
+        name = html.escape(user.first_name)
+        if user.last_name:
+            name += f" {html.escape(user.last_name)}"
+        
+        log_text = (
+            f"📩 <b>New {msg_type} from @{self.username}</b>\n"
+            f"👤 <b>From:</b> {name} (<code>{user.id}</code>)\n"
+        )
+        
+        if caption:
+            log_text += f"\n<code>{html.escape(caption)}</code>"
+        
+        try:
+            # Send to log channel
+            self.updater.bot.send_message(
+                chat_id=LOG_CHANNEL,
+                text=log_text,
+                parse_mode='HTML'
+            )
+        except Exception as e:
+            logger.error(f"Failed to log message: {e}")
+    
     def _auto_delete(self, chat_id: str, message_id: int):
         """Auto-delete message after delay if enabled"""
         delay = user_db.get(f'del_{self.username}')
-        if not delay or int(delay) <= 0:
+        if not delay:
             return
         
         try:
+            delay_seconds = int(delay)
+            
             def delete_message():
                 try:
                     self.updater.bot.delete_message(chat_id, message_id)
@@ -517,7 +449,7 @@ class AnonymousBot:
             # Schedule deletion
             self.updater.job_queue.run_once(
                 lambda _: delete_message(),
-                int(delay)
+                delay_seconds
             )
         except Exception as e:
             logger.error(f"Error scheduling auto-delete: {e}")
@@ -555,20 +487,21 @@ class BotManager:
 # Initialize bot manager
 bot_manager = BotManager()
 
+# Main bot handlers
 def start(update: Update, context: CallbackContext):
     """Handle /start command for main bot"""
     user = update.effective_user
-    name = user.first_name
+    name = html.escape(user.first_name)
     if user.last_name:
-        name += f" {user.last_name}"
-
+        name += f" {html.escape(user.last_name)}"
+    
     message = (
         f"Halo <b>{name}</b>! 👋\n\n"
         "Saya adalah Anon Builder yang membantu Anda membuat bot menfes anonim "
         "tanpa perlu server sendiri.\n\n"
         "Silakan pilih opsi di bawah ini:"
     )
-
+    
     keyboard = [
         [InlineKeyboardButton("📝 Tentang", callback_data='bt_about')],
         [InlineKeyboardButton("🤖 Buat Bot", callback_data='bt_build')],
@@ -577,29 +510,29 @@ def start(update: Update, context: CallbackContext):
             InlineKeyboardButton("💬 Support", callback_data='bt_support')
         ]
     ]
-
+    
     reply_markup = InlineKeyboardMarkup(keyboard)
-
+    
     if update.message:
         update.message.reply_html(message, reply_markup=reply_markup)
     elif update.callback_query:
         update.callback_query.edit_message_text(message, parse_mode='HTML', reply_markup=reply_markup)
 
 def handle_forwarded_message(update: Update, context: CallbackContext):
-    """Handle forwarded messages from BotFather"""
-    if not (update.message and update.message.forward_from and
+    """Handler untuk pesan yang diteruskan dari BotFather"""
+    if not (update.message and update.message.forward_from and 
             str(update.message.forward_from.id) == '93372553'):  # BotFather ID
         return
-
+    
     chat_id = update.effective_chat.id
     if not user_db.get(f'addbot_{chat_id}'):
         return
-
+    
     user = update.effective_user
-    name = user.first_name
+    name = html.escape(user.first_name)
     if user.last_name:
-        name += f' {user.last_name}'
-
+        name += f' {html.escape(user.last_name)}'
+    
     # Kirim notifikasi ke admin
     context.bot.send_message(
         chat_id=MAIN_ADMIN_ID,
@@ -611,7 +544,7 @@ def handle_forwarded_message(update: Update, context: CallbackContext):
         ),
         parse_mode='HTML'
     )
-
+    
     # Ekstrak token dari pesan
     token_match = re.search(r'\d{9,10}:[a-zA-Z0-9_-]{35}', update.message.text)
     if not token_match:
@@ -620,15 +553,15 @@ def handle_forwarded_message(update: Update, context: CallbackContext):
             reply_to_message_id=update.message.message_id
         )
         return
-
+    
     token = token_match.group(0)
     success, message = bot_manager.create_bot(token, user.id)
-
+    
     update.message.reply_html(
         f"<i>🔄 Sedang membuat bot...</i>\n\n{message}",
         reply_to_message_id=update.message.message_id
     )
-
+    
     # Clear the flag
     user_db.pop(f'addbot_{chat_id}', None)
 
@@ -637,12 +570,10 @@ def button_handler(update: Update, context: CallbackContext):
     query = update.callback_query
     if not query:
         return
-
+    
     query.answer()
-
-    if query.data == 'bt_start':
-        start(update, context)
-    elif query.data == 'bt_build':
+    
+    if query.data == 'bt_build':
         user_db[f'addbot_{query.message.chat.id}'] = True
         query.edit_message_text(
             "📝 <b>Panduan Membuat Bot</b>\n\n"
@@ -652,6 +583,7 @@ def button_handler(update: Update, context: CallbackContext):
             parse_mode='HTML',
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Kembali", callback_data='bt_start')]])
         )
+    
     elif query.data == 'bt_about':
         query.edit_message_text(
             "🤖 <b>Tentang Anon Builder Bot</b>\n\n"
@@ -659,10 +591,17 @@ def button_handler(update: Update, context: CallbackContext):
             "- Server pribadi\n"
             "- Pengetahuan pemrograman\n"
             "- Konfigurasi rumit\n\n"
-            "Dengan beberapa klik, Anda bisa memiliki bot menfes sendiri!",
+            "Dengan beberapa klik, Anda bisa memiliki bot menfes sendiri!\n\n"
+            "📊 Fitur:\n"
+            "• Posting anonim ke channel\n"
+            "• Pengaturan pesan welcome\n"
+            "• Auto reply\n"
+            "• Force subscribe channel\n"
+            "• Dan banyak lagi!",
             parse_mode='HTML',
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Kembali", callback_data='bt_start')]])
         )
+    
     elif query.data == 'bt_admin':
         keyboard = [
             [InlineKeyboardButton("👮 Admin 1", url="tg://user?id=1910497806")],
@@ -674,6 +613,7 @@ def button_handler(update: Update, context: CallbackContext):
             parse_mode='HTML',
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
+    
     elif query.data == 'bt_support':
         user_db[f'support_{query.message.chat.id}'] = True
         keyboard = [[InlineKeyboardButton("❌ Batalkan", callback_data='bt_cancel')]]
@@ -682,17 +622,18 @@ def button_handler(update: Update, context: CallbackContext):
             parse_mode='HTML',
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
+    
     elif query.data == 'bt_cancel':
         user_db.pop(f'support_{query.message.chat.id}', None)
         query.edit_message_text(
             "❌ Permintaan dibatalkan",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Kembali ke Menu", callback_data='bt_start')]])
         )
+    
+    elif query.data == 'bt_start':
+        start(update, context)
 
-
-# Flask app
-app = Flask(__name__)
-
+# Flask routes
 @app.route('/')
 def home():
     return "Anon Builder Bot is running!"
@@ -724,7 +665,6 @@ def setup_telegram_bot():
         updater = Updater(TOKEN, use_context=True)
         dp = updater.dispatcher
         
-        # Register handlers
         dp.add_handler(CommandHandler("start", start))
         dp.add_handler(MessageHandler(
             Filters.forwarded & Filters.chat_type.private & Filters.text,
@@ -732,7 +672,6 @@ def setup_telegram_bot():
         ))
         dp.add_handler(CallbackQueryHandler(button_handler))
         
-        # Set webhook
         webhook_url = f"{WEBHOOK_URL}/webhook"
         updater.bot.set_webhook(webhook_url)
         logger.info(f"Main bot webhook set to: {webhook_url}")
