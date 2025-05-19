@@ -1,17 +1,20 @@
-# Use the official Python image from the Docker Hub
+# Gunakan image Python resmi
 FROM python:3.9-slim
 
-# Set the working directory in the container
+# Set working directory
 WORKDIR /app
 
-# Copy the requirements file
+# Copy file requirements
 COPY requirements.txt .
 
-# Install the required packages
+# Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the code to the container
+# Copy seluruh kode aplikasi
 COPY . .
 
-# Command to run the bot
+# Expose port
+EXPOSE 5000
+
+# Jalankan aplikasi
 CMD ["python", "app.py"]
