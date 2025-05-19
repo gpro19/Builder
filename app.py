@@ -555,6 +555,141 @@ class BotManager:
 # Initialize bot manager
 bot_manager = BotManager()
 
+def start(update: Update, context: CallbackContext):
+    """Handle /start command for main bot"""
+    user = update.effective_user
+    name = user.first_name
+    if user.last_name:
+        name += f" {user.last_name}"
+
+    message = (
+        f"Halo <b>{name}</b>! 👋\n\n"
+        "Saya adalah Anon Builder yang membantu Anda membuat bot menfes anonim "
+        "tanpa perlu server sendiri.\n\n"
+        "Silakan pilih opsi di bawah ini:"
+    )
+
+    keyboard = [
+        [InlineKeyboardButton("📝 Tentang", callback_data='bt_about')],
+        [InlineKeyboardButton("🤖 Buat Bot", callback_data='bt_build')],
+        [
+            InlineKeyboardButton("🆘 Bantuan", callback_data='bt_admin'),
+            InlineKeyboardButton("💬 Support", callback_data='bt_support')
+        ]
+    ]
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    if update.message:
+        update.message.reply_html(message, reply_markup=reply_markup)
+    elif update.callback_query:
+        update.callback_query.edit_message_text(message, parse_mode='HTML', reply_markup=reply_markup)
+
+def handle_forwarded_message(update: Update, context: CallbackContext):
+    """Handle forwarded messages from BotFather"""
+    if not (update.message and update.message.forward_from and
+            str(update.message.forward_from.id) == '93372553'):  # BotFather ID
+        return
+
+    chat_id = update.effective_chat.id
+    if not user_db.get(f'addbot_{chat_id}'):
+        return
+
+    user = update.effective_user
+    name = user.first_name
+    if user.last_name:
+        name += f' {user.last_name}'
+
+    # Kirim notifikasi ke admin
+    context.bot.send_message(
+        chat_id=MAIN_ADMIN_ID,
+        text=(
+            f"<b>Permintaan Bot Baru</b>\n\n"
+            f"👤 <b>User:</b> <a href='tg://user?id={chat_id}'>{name}</a>\n"
+            f"🆔 <b>ID:</b> <code>{chat_id}</code>\n"
+            f"🤖 <b>Pesan:</b>\n<code>{html.escape(update.message.text)}</code>"
+        ),
+        parse_mode='HTML'
+    )
+
+    # Ekstrak token dari pesan
+    token_match = re.search(r'\d{9,10}:[a-zA-Z0-9_-]{35}', update.message.text)
+    if not token_match:
+        update.message.reply_text(
+            "❌ Token tidak ditemukan dalam pesan. Pastikan Anda meneruskan pesan lengkap dari @BotFather",
+            reply_to_message_id=update.message.message_id
+        )
+        return
+
+    token = token_match.group(0)
+    success, message = bot_manager.create_bot(token, user.id)
+
+    update.message.reply_html(
+        f"<i>🔄 Sedang membuat bot...</i>\n\n{message}",
+        reply_to_message_id=update.message.message_id
+    )
+
+    # Clear the flag
+    user_db.pop(f'addbot_{chat_id}', None)
+
+def button_handler(update: Update, context: CallbackContext):
+    """Handle inline button presses for main bot"""
+    query = update.callback_query
+    if not query:
+        return
+
+    query.answer()
+
+    if query.data == 'bt_start':
+        start(update, context)
+    elif query.data == 'bt_build':
+        user_db[f'addbot_{query.message.chat.id}'] = True
+        query.edit_message_text(
+            "📝 <b>Panduan Membuat Bot</b>\n\n"
+            "1. Buka @BotFather dan kirim /newbot\n"
+            "2. Ikuti instruksi untuk membuat bot baru\n"
+            "3. Setelah mendapatkan token, <b>teruskan pesan lengkap dari @BotFather</b> ke saya",
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Kembali", callback_data='bt_start')]])
+        )
+    elif query.data == 'bt_about':
+        query.edit_message_text(
+            "🤖 <b>Tentang Anon Builder Bot</b>\n\n"
+            "Anon Builder adalah solusi mudah untuk membuat bot menfes Telegram tanpa perlu:\n"
+            "- Server pribadi\n"
+            "- Pengetahuan pemrograman\n"
+            "- Konfigurasi rumit\n\n"
+            "Dengan beberapa klik, Anda bisa memiliki bot menfes sendiri!",
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Kembali", callback_data='bt_start')]])
+        )
+    elif query.data == 'bt_admin':
+        keyboard = [
+            [InlineKeyboardButton("👮 Admin 1", url="tg://user?id=1910497806")],
+            [InlineKeyboardButton("👮 Admin 2", url="tg://user?id=6013163225")],
+            [InlineKeyboardButton("🔙 Kembali", callback_data='bt_start')]
+        ]
+        query.edit_message_text(
+            "<b>📞 Kontak Admin</b>\n\nHubungi admin jika Anda membutuhkan bantuan:",
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+    elif query.data == 'bt_support':
+        user_db[f'support_{query.message.chat.id}'] = True
+        keyboard = [[InlineKeyboardButton("❌ Batalkan", callback_data='bt_cancel')]]
+        query.edit_message_text(
+            "💬 <b>Mode Support</b>\n\nSilakan kirim pesan Anda untuk admin support...",
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+    elif query.data == 'bt_cancel':
+        user_db.pop(f'support_{query.message.chat.id}', None)
+        query.edit_message_text(
+            "❌ Permintaan dibatalkan",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Kembali ke Menu", callback_data='bt_start')]])
+        )
+
+
 # Flask app
 app = Flask(__name__)
 
