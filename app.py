@@ -35,7 +35,15 @@ user_db = {}
 class BotManager:
     """Kelas untuk mengelola bot-bot yang dibuat"""
     def __init__(self):
-        self.active_bots = {}  # {user_id: bot_instance}
+        self.active_bots = {}  # {user_id: bot_data}
+        self.main_bot = None  # Untuk menyimpan bot utama
+    
+    def set_main_bot(self, bot: Bot, dispatcher: Dispatcher):
+        """Set bot utama"""
+        self.main_bot = {
+            'bot': bot,
+            'dispatcher': dispatcher
+        }
     
     def create_bot(self, token: str, user_id: int):
         """Membuat dan menjalankan bot baru dengan webhook"""
@@ -57,14 +65,15 @@ class BotManager:
             dp.add_handler(MessageHandler(Filters.text & ~Filters.command, self._new_bot_echo))
             
             # Set webhook untuk bot baru
-            webhook_url = f"{WEBHOOK_URL}/{token}"  # Unique endpoint untuk setiap bot
+            webhook_url = f"{WEBHOOK_URL}/webhook/{token}"  # Unique endpoint untuk setiap bot
             updater.bot.set_webhook(webhook_url)
             
             # Simpan referensi
             self.active_bots[user_id] = {
                 'bot': new_bot,
                 'updater': updater,
-                'webhook_url': webhook_url
+                'webhook_url': webhook_url,
+                'token': token
             }
             
             return True, "✅ Bot berhasil dibuat dan dijalankan!\n\n" \
@@ -250,15 +259,18 @@ def home():
 @app.route('/webhook', methods=['POST'])
 def webhook():
     """Main webhook untuk bot utama"""
-    update = Update.de_json(request.get_json(), bot_manager.active_bots[0]['bot'])
-    dispatcher.process_update(update)
+    if not bot_manager.main_bot:
+        return jsonify(success=False, error="Main bot not initialized"), 500
+        
+    update = Update.de_json(request.get_json(), bot_manager.main_bot['bot'])
+    bot_manager.main_bot['dispatcher'].process_update(update)
     return jsonify(success=True)
 
 @app.route('/webhook/<token>', methods=['POST'])
 def bot_webhook(token):
     """Webhook untuk bot-bot yang dibuat"""
     for user_id, bot_data in bot_manager.active_bots.items():
-        if token in bot_data['webhook_url']:
+        if bot_data.get('token') == token:
             update = Update.de_json(request.get_json(), bot_data['bot'])
             bot_data['updater'].dispatcher.process_update(update)
             return jsonify(success=True)
@@ -278,8 +290,12 @@ def setup_telegram_bot():
     dp.add_handler(CallbackQueryHandler(button_handler))
     
     # Set webhook
-    updater.bot.set_webhook(f"{WEBHOOK_URL}/webhook")
-    logger.info(f"Webhook set untuk bot utama: {WEBHOOK_URL}/webhook")
+    webhook_url = f"{WEBHOOK_URL}/webhook"
+    updater.bot.set_webhook(webhook_url)
+    logger.info(f"Webhook set untuk bot utama: {webhook_url}")
+    
+    # Simpan bot utama ke manager
+    bot_manager.set_main_bot(updater.bot, dp)
     
     return updater
 
