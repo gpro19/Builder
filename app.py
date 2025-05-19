@@ -454,7 +454,7 @@ def handle_forwarded_message(update: Update, context: CallbackContext):
             
             # Kirim notifikasi ke admin
             context.bot.send_message(
-                chat_id=ADMIN_CHAT_ID,
+                chat_id=MAIN_ADMIN_ID,
                 text=f"<b>Permintaan Bot Baru</b>\n"
                      f"<b>User:</b> {idnama}\n"
                      f"<b>ID:</b> {dari}\n"
