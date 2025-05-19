@@ -288,4 +288,4 @@ if __name__ == '__main__':
     main_bot = setup_telegram_bot()
     
     # Jalankan Flask
-    app.run(host='0.0.0.0', port=8000, ssl_context='adhoc')  # Gunakan SSL nyata di production
+    app.run(host='0.0.0.0', port=8000)  # Gunakan SSL nyata di production
