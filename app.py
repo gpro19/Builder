@@ -8,12 +8,10 @@ from telegram.ext import (
     CallbackContext,
     CallbackQueryHandler
 )
-import threading
-import html
 import re
 from flask import Flask, request, jsonify
 import os
-from datetime import datetime, timedelta
+import html
 
 app = Flask(__name__)
 
@@ -406,34 +404,227 @@ class AnonymousBot:
             # Auto-delete if enabled
             self._auto_delete(channel_id, sent_message.message_id)
         except Exception as e:
-            logger.error(f"Failed to send text message: {e}")
-            update.message.reply_text("❌ Gagal mengirim pesan. Silakan coba lagi.")
-    
-    def _log_message(self, update: Update, msg_type: str, caption: str = ""):
-        """Log messages to channels"""
-        user = update.effective_user
-        name = html.escape(user.first_name)
-        if user.last_name:
-            name += f" {html.escape(user.last_name)}"
-        
-        log_text = (
-            f"📩 <b>New {msg_type} from @{self.username}</b>\n"
-            f"👤 <b>From:</b> {name} (<code>{user.id}</code>)\n"
-        )
-        
-        if caption:
-            log_text += f"\n<code>{html.escape(caption)}</code>"
-        
-        try:
-            # Send to log channel
-            self.updater.bot.send_message(
-                chat_id=LOG_CHANNEL,
-                text=log_text,
-                parse_mode='HTML'
-            )
-        except Exception as e:
             logger.error(f"Failed to log message: {e}")
+	
+
+	def _log_message(self, update: Update, msg_type: str, caption: str = ""):
+	    """Log messages to channels"""
+	    user = update.effective_user
+	    name = html.escape(user.first_name)
+	    if user.last_name:
+	        name += f" {html.escape(user.last_name)}"
+	    
+	    log_text = (
+	        f"📩 <b>New {msg_type} from @{self.username}</b>\n"
+	        f"👤 <b>From:</b> {name} (<code>{user.id}</code>)\n"
+	    )
+	    
+	    if caption:
+	        log_text += f"\n<code>{html.escape(caption)}</code>"
+	    
+	    try:
+	        # Send to log channel
+	        self.updater.bot.send_message(
+	            chat_id=LOG_CHANNEL,
+	            text=log_text,
+	            parse_mode='HTML'
+	        )
+	    except Exception as e:
+	        logger.error(f"Failed to log message: {e}")
+	
+	def _auto_delete(self, chat_id: str, message_id: int):
+	    """Auto-delete message after delay if enabled"""
+	    delay = user_db.get(f'del_{self.username}')
+	    if not delay:
+	        return
+	    
+	    try:
+	        delay_seconds = int(delay)
+	        
+	        def delete_message():
+	            try:
+	                self.updater.bot.delete_message(chat_id, message_id)
+	            except Exception as e:
+	                logger.error(f"Failed to auto-delete message: {e}")
+	        
+	        # Schedule deletion
+	        self.updater.job_queue.run_once(
+	            lambda _: delete_message(),
+	            delay_seconds
+	        )
+	    except Exception as e:
+	        logger.error(f"Error scheduling auto-delete: {e}")
+	
+	def _handle_mode_settings(self, query):
+	    """Handle message mode settings"""
+	    bot_username = self.username
+	    mode = query.data.split('_')[1]
+	    
+	    # Toggle modes
+	    if mode == 'All':
+	        user_db.pop(f'modeText_{bot_username}', None)
+	        user_db.pop(f'modeFoto_{bot_username}', None)
+	        user_db.pop(f'modeSticker_{bot_username}', None)
+	        user_db.pop(f'modeBerkas_{bot_username}', None)
+	        text = "✅ Semua mode pesan diaktifkan"
+	    else:
+	        current_state = user_db.get(f'mode{mode}_{bot_username}')
+	        if current_state:
+	            user_db.pop(f'mode{mode}_{bot_username}', None)
+	            text = f"✅ Mode {mode} diaktifkan"
+	        else:
+	            user_db[f'mode{mode}_{bot_username}'] = 'nonaktif'
+	            text = f"❌ Mode {mode} dinonaktifkan"
+	    
+	    # Update keyboard
+	    keyboard = [
+	        [InlineKeyboardButton("📝 Set Pesan Welcome", callback_data='st_start')],
+	        [InlineKeyboardButton("📩 Set Pesan Auto Reply", callback_data='st_kirim')],
+	        [InlineKeyboardButton("📢 Set Channel", callback_data='st_channel' if not user_db.get(f'channel_{bot_username}') else 'st_anon')],
+	        [InlineKeyboardButton("⏱️ Set Waktu Hapus", callback_data='st_del')],
+	        [InlineKeyboardButton("⏸️ Set Mode Jeda", callback_data='st_jeda')],
+	        [InlineKeyboardButton("🔗 Set Force Sub", callback_data='st_fsub')],
+	        [InlineKeyboardButton("✉️ Set Mode Kirim", callback_data='mode_All')]
+	    ]
+	    
+	    query.edit_message_text(
+	        f"⚙️ <b>Pengaturan Bot @{bot_username}</b>\n\n"
+	        f"{text}\n\n"
+	        "Pilih opsi pengaturan:",
+	        parse_mode='HTML',
+	        reply_markup=InlineKeyboardMarkup(keyboard)
+	    )
+	
+	def _handle_pause_settings(self, query):
+	    """Handle pause mode settings"""
+	    bot_username = self.username
+	    current_state = user_db.get(f'jeda_{bot_username}')
+	    
+	    if current_state == 'iya':
+	        user_db.pop(f'jeda_{bot_username}', None)
+	        text = "✅ Bot kembali aktif"
+	    else:
+	        user_db[f'jeda_{bot_username}'] = 'iya'
+	        text = "⏸️ Bot dijeda"
+	    
+	    # Update keyboard
+	    keyboard = [
+	        [InlineKeyboardButton("📝 Set Pesan Welcome", callback_data='st_start')],
+	        [InlineKeyboardButton("📩 Set Pesan Auto Reply", callback_data='st_kirim')],
+	        [InlineKeyboardButton("📢 Set Channel", callback_data='st_channel' if not user_db.get(f'channel_{bot_username}') else 'st_anon')],
+	        [InlineKeyboardButton("⏱️ Set Waktu Hapus", callback_data='st_del')],
+	        [InlineKeyboardButton("⏸️ Set Mode Jeda", callback_data='st_jeda')],
+	        [InlineKeyboardButton("🔗 Set Force Sub", callback_data='st_fsub')],
+	        [InlineKeyboardButton("✉️ Set Mode Kirim", callback_data='mode_All')]
+	    ]
+	    
+	    query.edit_message_text(
+	        f"⚙️ <b>Pengaturan Bot @{bot_username}</b>\n\n"
+	        f"{text}\n\n"
+	        "Pilih opsi pengaturan:",
+	        parse_mode='HTML',
+	        reply_markup=InlineKeyboardMarkup(keyboard)
+	    )
+	
+	def _handle_fsub_settings(self, query):
+	    """Handle force subscription settings"""
+	    bot_username = self.username
+	    current_state = user_db.get(f'fsub_{bot_username}')
+	    
+	    if current_state == 'iya':
+	        user_db.pop(f'fsub_{bot_username}', None)
+	        text = "❌ Force subscribe dinonaktifkan"
+	    else:
+	        user_db[f'fsub_{bot_username}'] = 'iya'
+	        text = "✅ Force subscribe diaktifkan"
+	    
+	    # Update keyboard
+	    keyboard = [
+	        [InlineKeyboardButton("📝 Set Pesan Welcome", callback_data='st_start')],
+	        [InlineKeyboardButton("📩 Set Pesan Auto Reply", callback_data='st_kirim')],
+	        [InlineKeyboardButton("📢 Set Channel", callback_data='st_channel' if not user_db.get(f'channel_{bot_username}') else 'st_anon')],
+	        [InlineKeyboardButton("⏱️ Set Waktu Hapus", callback_data='st_del')],
+	        [InlineKeyboardButton("⏸️ Set Mode Jeda", callback_data='st_jeda')],
+	        [InlineKeyboardButton("🔗 Set Force Sub", callback_data='st_fsub')],
+	        [InlineKeyboardButton("✉️ Set Mode Kirim", callback_data='mode_All')]
+	    ]
+	    
+	    query.edit_message_text(
+	        f"⚙️ <b>Pengaturan Bot @{bot_username}</b>\n\n"
+	        f"{text}\n\n"
+	        "Pilih opsi pengaturan:",
+	        parse_mode='HTML',
+	        reply_markup=InlineKeyboardMarkup(keyboard)
+	    )
+	
+	def _handle_delete_settings(self, query):
+	    """Handle auto-delete settings"""
+	    bot_username = self.username
+	    current_delay = user_db.get(f'del_{bot_username}')
+	    
+	    keyboard = [
+	        [InlineKeyboardButton("5 detik", callback_data='del_5')],
+	        [InlineKeyboardButton("10 detik", callback_data='del_10')],
+	        [InlineKeyboardButton("30 detik", callback_data='del_30')],
+	        [InlineKeyboardButton("1 menit", callback_data='del_60')],
+	        [InlineKeyboardButton("5 menit", callback_data='del_300')],
+	        [InlineKeyboardButton("Nonaktifkan", callback_data='del_0')],
+	        [InlineKeyboardButton("🔙 Kembali", callback_data='bt_start')]
+	    ]
+	    
+	    if current_delay:
+	        text = f"⏱️ Waktu hapus saat ini: {current_delay} detik"
+	    else:
+	        text = "⏱️ Auto-delete saat ini dinonaktifkan"
+	    
+	    query.edit_message_text(
+	        f"⚙️ <b>Set Waktu Hapus Otomatis</b>\n\n"
+	        f"{text}\n\n"
+	        "Pilih waktu hapus otomatis:",
+	        parse_mode='HTML',
+	        reply_markup=InlineKeyboardMarkup(keyboard)
+	    )
+	
+	def _handle_delete_confirmation(self, query):
+    """Handle auto-delete confirmation"""
+    bot_username = self.username
+    delay = query.data.split('_')[1]
     
+    if delay == '0':
+        user_db.pop(f'del_{bot_username}', None)
+        text = "❌ Auto-delete dinonaktifkan"
+    else:
+        user_db[f'del_{bot_username}'] = delay
+        text = f"✅ Auto-delete diaktifkan ({delay} detik)"
+    
+    # Get current settings for the settings menu
+    welcome_text = user_db.get(f'startText_{bot_username}', "Halo! Selamat datang di bot menfes anonim.")
+    auto_reply = user_db.get(f'kirimText_{bot_username}', "✅ Pesan berhasil terkirim!")
+    channel = user_db.get(f'channel_{bot_username}')
+    
+    # Prepare keyboard for settings menu
+    keyboard = [
+        [InlineKeyboardButton("📝 Set Pesan Welcome", callback_data='st_start')],
+        [InlineKeyboardButton("📩 Set Pesan Auto Reply", callback_data='st_kirim')],
+        [InlineKeyboardButton("📢 Set Channel", callback_data='st_channel' if not channel else 'st_anon')],
+        [InlineKeyboardButton("⏱️ Set Waktu Hapus", callback_data='st_del')],
+        [InlineKeyboardButton("⏸️ Set Mode Jeda", callback_data='st_jeda')],
+        [InlineKeyboardButton("🔗 Set Force Sub", callback_data='st_fsub')],
+        [InlineKeyboardButton("✉️ Set Mode Kirim", callback_data='mode_All')]
+    ]
+    
+    # Update message with confirmation and return to settings
+    query.edit_message_text(
+        f"⚙️ <b>Pengaturan Bot @{bot_username}</b>\n\n"
+        f"{text}\n\n"
+        f"📝 Pesan Welcome: <code>{html.escape(welcome_text[:50])}...</code>\n"
+        f"📩 Auto Reply: <code>{html.escape(auto_reply[:50])}...</code>\n"
+        f"📢 Channel: <code>{channel if channel else 'Tidak terhubung'}</code>\n\n"
+        "Pilih opsi pengaturan:",
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
     def _auto_delete(self, chat_id: str, message_id: int):
         """Auto-delete message after delay if enabled"""
         delay = user_db.get(f'del_{self.username}')
@@ -700,3 +891,4 @@ def run():
 
 if __name__ == '__main__':
     run()
+
