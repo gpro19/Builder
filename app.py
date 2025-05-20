@@ -152,12 +152,12 @@ class AnonymousBot:
         ]    
         
         if channel:
-            keyboard.append([InlineKeyboardButton("📢 Kelola Channel", callback_data='manage_channel')])
+            keyboard.append([InlineKeyboardButton("📢 Kelola Channel", callback_data='set_manage')])
         else:
             keyboard.append([InlineKeyboardButton("📢 Set Channel", callback_data='set_channel')])
        
         keyboard.extend([    
-            [InlineKeyboardButton(f"⏱️ Auto Delete: {delete_time if delete_time else 'Off'} detik", callback_data='set_delete_time')],
+            [InlineKeyboardButton(f"⏱️ Auto Delete: {delete_time + ' detik' if delete_time else 'Nonaktif'}", callback_data='set_delete_time')],
             [InlineKeyboardButton(f"⏸️ Mode Jeda: {'Aktif' if is_paused else 'Nonaktif'}", callback_data='toggle_pause')],
             [InlineKeyboardButton(f"🔗 Force Sub: {'Aktif' if fsub_enabled else 'Nonaktif'}", callback_data='toggle_fsub')],
             [
@@ -168,7 +168,7 @@ class AnonymousBot:
                 InlineKeyboardButton(f"Stiker: {sticker_mode}", callback_data='toggle_sticker_mode'),
                 InlineKeyboardButton(f"Dokumen: {doc_mode}", callback_data='toggle_doc_mode')
             ],
-            [InlineKeyboardButton("🔙 Tutup Pengaturan", callback_data='close_settings')]
+            [InlineKeyboardButton("🔙 Tutup Pengaturan", callback_data='set_close')]
         ])
      
         # Improved settings text with better formatting
@@ -178,7 +178,7 @@ class AnonymousBot:
             f"📝 <b>Pesan Welcome:</b>\n<code>{html.escape(welcome_text[:60])}{'...' if len(welcome_text) > 60 else ''}</code>\n\n"
             f"📩 <b>Auto Reply:</b>\n<code>{html.escape(auto_reply[:60])}{'...' if len(auto_reply) > 60 else ''}</code>\n\n"
             f"📢 <b>Channel Terhubung:</b> <code>{channel if channel else 'Tidak ada'}</code>\n"
-            f"⏱️ <b>Auto Delete:</b> <code>{delete_time if delete_time else 'Off'} detik</code>\n\n"
+            f"⏱️ <b>Auto Delete:</b> <code>{delete_time + ' detik' if delete_time else 'Nonaktif'}</code>\n\n"
             "🛠️ <b>Status Fitur:</b>\n"
             f"- Teks: <b>{text_mode}</b>\n"
             f"- Foto: <b>{photo_mode}</b>\n"
@@ -320,7 +320,7 @@ class AnonymousBot:
                 )
                 user_db[f'editing_{bot_username}'] = 'connect_channel'
         
-        elif action_type == 'manage_channel':
+        elif action_type == 'manage':
             current_channel = user_db.get(f'channel_{self.username}')
             try:
                 channel_info = self.updater.bot.get_chat(current_channel)
@@ -333,8 +333,8 @@ class AnonymousBot:
                     "Silakan pilih aksi:",
                     parse_mode='HTML',
                     reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton("🔄 Ganti Channel", callback_data='change_channel')],
-                        [InlineKeyboardButton("❌ Putuskan Channel", callback_data='disconnect_channel')],
+                        [InlineKeyboardButton("🔄 Ganti Channel", callback_data='set_change')],
+                        [InlineKeyboardButton("❌ Putuskan Channel", callback_data='set_disconnect')],
                         [InlineKeyboardButton("🔙 Kembali", callback_data='back_to_settings')]
                     ])
                 )
@@ -345,20 +345,20 @@ class AnonymousBot:
                     reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Kembali", callback_data='back_to_settings')]])
                 )
                 
-        elif action_type == 'change_channel':
+        elif action_type == 'change':
             # Show instructions to change channel
             query.edit_message_text(
                 f"📢 <b>Ganti Channel</b>\n\n"
-                "1. Tambahkan @{bot_username} ke channel baru sebagai admin\n"
-                "2. Kirim pesan apapun di channel tersebut\n"
-                "3. Teruskan pesan tersebut ke bot ini\n\n"
+                f"1. Tambahkan @{bot_username} ke channel baru sebagai admin\n"
+                f"2. Kirim pesan apapun di channel tersebut\n"
+                f"3. Teruskan pesan tersebut ke bot ini\n\n"
                 "Channel lama akan otomatis diganti.",
                 parse_mode='HTML',
                 reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Kembali", callback_data='back_to_settings')]])
             )
             user_db[f'editing_{bot_username}'] = 'connect_channel'
         
-        elif action_type == 'disconnect_channel':
+        elif action_type == 'disconnect':
             user_db.pop(f'channel_{bot_username}', None)
             query.edit_message_text(
                 "✅ Channel berhasil diputuskan. Pesan akan dikirim ke admin bot.",
@@ -399,7 +399,7 @@ class AnonymousBot:
                     reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Kembali", callback_data='back_to_settings')]])
                 )
         
-        elif action_type == 'close_settings':
+        elif action_type == 'close':
             query.edit_message_text("✅ Pengaturan disimpan")
     
     def message_handler(self, update: Update, context: CallbackContext):
@@ -484,10 +484,10 @@ class AnonymousBot:
                         )
                     else:
                         update.message.reply_text(
-                            "❌ Bot harus menjadi admin di channel tersebut!\n\n"
-                            "Pastikan Anda:\n"
-                            "1. Menambahkan @{self.username} sebagai admin\n"
-                            "2. Memberikan izin posting dan hapus pesan"
+                            f"❌ Bot harus menjadi admin di channel tersebut!\n\n"
+                            f"Pastikan Anda:\n"
+                            f"1. Menambahkan @{self.username} sebagai admin\n"
+                            f"2. Memberikan izin posting dan hapus pesan"
                         )
                 except Exception as e:
                     logger.error(f"Error connecting channel: {e}")
@@ -505,8 +505,7 @@ class AnonymousBot:
             sent_message = context.bot.send_photo(
                 chat_id=channel_id,
                 photo=update.message.photo[-1].file_id,
-                caption=caption,
-                has_spoiler=True
+                caption=caption                
             )
             
             # Send confirmation
@@ -536,11 +535,9 @@ class AnonymousBot:
             reply_text = user_db.get(f'kirimText_{self.username}', "✅ Pesan berhasil terkirim!")
             update.message.reply_text(reply_text)
             
+
             # Log the message
-            self._log_message(update, "Sticker")
-            
-            # Auto-delete if enabled
-            self._auto_delete(channel_id, sent_message.message_id)
+            self._log_message(update, "Sticker")    
         except Exception as e:
             logger.error(f"Failed to send sticker: {e}")
             update.message.reply_text("❌ Gagal mengirim stiker. Silakan coba lagi.")
@@ -558,13 +555,13 @@ class AnonymousBot:
             
             # Send confirmation
             reply_text = user_db.get(f'kirimText_{self.username}', "✅ Pesan berhasil terkirim!")
-            update.message.reply_text(reply_text)
+            update.message.reply_text(reply_text, reply_to_message_id=update.message.message_id)
             
-            # Log the message
-            self._log_message(update, "Document", update.message.caption)
             
             # Auto-delete if enabled
             self._auto_delete(channel_id, sent_message.message_id)
+            # Log the message
+            self._log_message(update, "Document", update.message.caption)           
         except Exception as e:
             logger.error(f"Failed to send document: {e}")
             update.message.reply_text("❌ Gagal mengirim dokumen. Silakan coba lagi.")
@@ -586,8 +583,6 @@ class AnonymousBot:
             # Log the message
             self._log_message(update, "Text", update.message.text)
             
-            # Auto-delete if enabled
-            self._auto_delete(channel_id, sent_message.message_id)
         except Exception as e:
             logger.error(f"Failed to send text message: {e}")
             update.message.reply_text("❌ Gagal mengirim pesan teks. Silakan coba lagi.")
@@ -767,6 +762,13 @@ def handle_forwarded_message(update: Update, context: CallbackContext):
         parse_mode='HTML'
     )
     
+    sent_message = update.message.reply_html(
+        f"🔄 Sedang membuat bot...</i>\n\n",
+        reply_to_message_id=update.message.message_id
+    )
+    
+    processing_message_id = sent_message.message_id
+    
     # Ekstrak token dari pesan
     token_match = re.search(r'\d{9,10}:[a-zA-Z0-9_-]{35}', update.message.text)
     if not token_match:
@@ -779,10 +781,21 @@ def handle_forwarded_message(update: Update, context: CallbackContext):
     token = token_match.group(0)
     success, message = bot_manager.create_bot(token, user.id)
     
-    update.message.reply_html(
-        f"🔄 Sedang membuat bot...</i>\n\n{message}",
-        reply_to_message_id=update.message.message_id
-    )
+    
+    # Edit pesan dengan hasil pembuatan bot
+    try:
+        context.bot.edit_message_text(
+            chat_id=chat_id,
+            message_id=processing_message_id,
+            text=f"✅ <b>Bot berhasil dibuat!</b>\n\n{message}",
+            parse_mode='HTML'
+        )
+    except Exception as e:
+        logger.error(f"Gagal mengedit pesan: {e}")
+        update.message.reply_html(
+            f"✅ <b>Bot berhasil dibuat!</b>\n\n{message}"
+        )
+   
     
     # Clear the flag
     user_db.pop(f'addbot_{chat_id}', None)
