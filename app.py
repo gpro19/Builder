@@ -790,31 +790,31 @@ def handle_forwarded_message(update: Update, context: CallbackContext):
     token = token_match.group(0)
     success, message = bot_manager.create_bot(token, user.id)
     
-   if success:
-        # Tandai pengguna sudah membuat bot
-        user_db[f'has_created_bot_{user.id}'] = True
+    if success:
+         # Tandai pengguna sudah membuat bot
+         user_db[f'has_created_bot_{user.id}'] = True
         
-        # Edit pesan dengan hasil pembuatan bot
-        try:
-            context.bot.edit_message_text(
-                chat_id=chat_id,
-                message_id=processing_message_id,
-                text=f"✅ <b>Bot berhasil dibuat!</b>\n\n{message}",
-                parse_mode='HTML'
-            )
-        except Exception as e:
-            logger.error(f"Gagal mengedit pesan: {e}")
-            update.message.reply_text(
-                f"✅ <b>Bot berhasil dibuat!</b>\n\n{message}",
-                parse_mode='HTML'
-            )
-    else:
-        # Jika gagal, kirim pesan error
-        context.bot.edit_message_text(
-            chat_id=chat_id,
-            message_id=processing_message_id,
-            text=f"❌ Gagal membuat bot: {message}"
-        )    
+         # Edit pesan dengan hasil pembuatan bot
+         try:
+             context.bot.edit_message_text(
+                 chat_id=chat_id,
+                 message_id=processing_message_id,
+                 text=f"✅ <b>Bot berhasil dibuat!</b>\n\n{message}",
+                 parse_mode='HTML'
+             )
+         except Exception as e:
+             logger.error(f"Gagal mengedit pesan: {e}")
+             update.message.reply_text(
+                 f"✅ <b>Bot berhasil dibuat!</b>\n\n{message}",
+                 parse_mode='HTML'
+             )
+     else:
+         # Jika gagal, kirim pesan error
+         context.bot.edit_message_text(
+             chat_id=chat_id,
+             message_id=processing_message_id,
+             text=f"❌ Gagal membuat bot: {message}"
+         )    
     
     
     # Clear the flag
