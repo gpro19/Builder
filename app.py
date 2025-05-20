@@ -808,13 +808,13 @@ def handle_forwarded_message(update: Update, context: CallbackContext):
                  f"✅ <b>Bot berhasil dibuat!</b>\n\n{message}",
                  parse_mode='HTML'
              )
-     else:
-         # Jika gagal, kirim pesan error
-         context.bot.edit_message_text(
-             chat_id=chat_id,
-             message_id=processing_message_id,
-             text=f"❌ Gagal membuat bot: {message}"
-         )    
+    else:
+        # Jika gagal, kirim pesan error
+        context.bot.edit_message_text(
+            chat_id=chat_id,
+            message_id=processing_message_id,
+            text=f"❌ Gagal membuat bot: {message}"
+        )    
     
     
     # Clear the flag
