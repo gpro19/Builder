@@ -118,82 +118,82 @@ class AnonymousBot:
         return True
     
   
-		def settings(self, update: Update, context: CallbackContext):
-		    """Handle /settings command (admin only)"""
-		    # Get the appropriate message object (works for both commands and callback queries)
-		    message = update.message or update.callback_query.message
-		    user = update.effective_user
-		    
-		    if user.id != self.creator_id:
-		        message.reply_text("⛔ <b>Akses Ditolak</b>\n\nHanya pemilik bot yang bisa mengakses pengaturan ini.", 
-		                         parse_mode='HTML')
-		        return
-		    
-		    # Get current settings
-		    welcome_text = user_db.get(f'startText_{self.username}', 
-		                             "👋 Halo! Selamat datang di bot menfes anonim.")
-		    auto_reply = user_db.get(f'kirimText_{self.username}', 
-		                           "✅ Pesan Anda telah terkirim secara anonim!")
-		    channel = user_db.get(f'channel_{self.username}')
-		    delete_time = user_db.get(f'del_{self.username}')
-		    is_paused = user_db.get(f'jeda_{self.username}') == 'iya'
-		    fsub_enabled = user_db.get(f'fsub_{self.username}') == 'iya'
-		    
-		    # Text mode status with emojis
-		    text_mode = "✅ Aktif" if not user_db.get(f'modeText_{self.username}') else "❌ Nonaktif"
-		    photo_mode = "✅ Aktif" if not user_db.get(f'modeFoto_{self.username}') else "❌ Nonaktif"
-		    sticker_mode = "✅ Aktif" if not user_db.get(f'modeSticker_{self.username}') else "❌ Nonaktif"
-		    doc_mode = "✅ Aktif" if not user_db.get(f'modeBerkas_{self.username}') else "❌ Nonaktif"
-		    
-		    # Button layout
-		    keyboard = [
-		        [InlineKeyboardButton("✏️ Edit Pesan Welcome", callback_data='set_welcome')],
-		        [InlineKeyboardButton("💬 Edit Auto Reply", callback_data='set_autoreply')],
-		        [InlineKeyboardButton("📢 Set Channel", callback_data='set_channel' if not channel else 'manage_channel')],
-		        [InlineKeyboardButton(f"⏱️ Auto Delete: {delete_time if delete_time else 'Off'} detik", callback_data='set_delete_time')],
-		        [InlineKeyboardButton(f"⏸️ Mode Jeda: {'Aktif' if is_paused else 'Nonaktif'}", callback_data='toggle_pause')],
-		        [InlineKeyboardButton(f"🔗 Force Sub: {'Aktif' if fsub_enabled else 'Nonaktif'}", callback_data='toggle_fsub')],
-		        [
-		            InlineKeyboardButton(f"Teks: {text_mode}", callback_data='toggle_text_mode'),
-		            InlineKeyboardButton(f"Foto: {photo_mode}", callback_data='toggle_photo_mode')
-		        ],
-		        [
-		            InlineKeyboardButton(f"Stiker: {sticker_mode}", callback_data='toggle_sticker_mode'),
-		            InlineKeyboardButton(f"Dokumen: {doc_mode}", callback_data='toggle_doc_mode')
-		        ],
-		        [InlineKeyboardButton("🔙 Tutup Pengaturan", callback_data='close_settings')]
-		    ]
-		    
-		    # Improved settings text with better formatting
-		    settings_text = (
-		        f"⚙️ <b>PENGATURAN BOT</b> @{self.username}\n"
-		        "━━━━━━━━━━━━━━━━━━\n"
-		        f"📝 <b>Pesan Welcome:</b>\n<code>{html.escape(welcome_text[:60])}{'...' if len(welcome_text) > 60 else ''}</code>\n\n"
-		        f"📩 <b>Auto Reply:</b>\n<code>{html.escape(auto_reply[:60])}{'...' if len(auto_reply) > 60 else ''}</code>\n\n"
-		        f"📢 <b>Channel Terhubung:</b> <code>{channel if channel else 'Tidak ada'}</code>\n"
-		        f"⏱️ <b>Auto Delete:</b> <code>{delete_time if delete_time else 'Off'} detik</code>\n\n"
-		        "🛠️ <b>Status Fitur:</b>\n"
-		        f"- Teks: <b>{text_mode}</b>\n"
-		        f"- Foto: <b>{photo_mode}</b>\n"
-		        f"- Stiker: <b>{sticker_mode}</b>\n"
-		        f"- Dokumen: <b>{doc_mode}</b>\n\n"
-		        "🔧 Silakan pilih opsi di bawah:"
-		    )
-		    
-		    # Edit message if it's a callback query, otherwise send new message
-		    if update.callback_query:
-		        update.callback_query.edit_message_text(
-		            settings_text,
-		            parse_mode='HTML',
-		            reply_markup=InlineKeyboardMarkup(keyboard)
-		        )
-		    else:
-		        message.reply_text(
-		            settings_text,
-		            parse_mode='HTML',
-		            reply_markup=InlineKeyboardMarkup(keyboard)
-		        )
-		
+    def settings(self, update: Update, context: CallbackContext):
+        """Handle /settings command (admin only)"""
+        # Get the appropriate message object (works for both commands and callback queries)
+        message = update.message or update.callback_query.message
+        user = update.effective_user
+        
+        if user.id != self.creator_id:
+            message.reply_text("⛔ <b>Akses Ditolak</b>\n\nHanya pemilik bot yang bisa mengakses pengaturan ini.", 
+                             parse_mode='HTML')
+            return
+        
+        # Get current settings
+        welcome_text = user_db.get(f'startText_{self.username}', 
+                                 "👋 Halo! Selamat datang di bot menfes anonim.")
+        auto_reply = user_db.get(f'kirimText_{self.username}', 
+                               "✅ Pesan Anda telah terkirim secara anonim!")
+        channel = user_db.get(f'channel_{self.username}')
+        delete_time = user_db.get(f'del_{self.username}')
+        is_paused = user_db.get(f'jeda_{self.username}') == 'iya'
+        fsub_enabled = user_db.get(f'fsub_{self.username}') == 'iya'
+        
+        # Text mode status with emojis
+        text_mode = "✅ Aktif" if not user_db.get(f'modeText_{self.username}') else "❌ Nonaktif"
+        photo_mode = "✅ Aktif" if not user_db.get(f'modeFoto_{self.username}') else "❌ Nonaktif"
+        sticker_mode = "✅ Aktif" if not user_db.get(f'modeSticker_{self.username}') else "❌ Nonaktif"
+        doc_mode = "✅ Aktif" if not user_db.get(f'modeBerkas_{self.username}') else "❌ Nonaktif"
+        
+        # Button layout
+        keyboard = [
+            [InlineKeyboardButton("✏️ Edit Pesan Welcome", callback_data='set_welcome')],
+            [InlineKeyboardButton("💬 Edit Auto Reply", callback_data='set_autoreply')],
+            [InlineKeyboardButton("📢 Set Channel", callback_data='set_channel' if not channel else 'manage_channel')],
+            [InlineKeyboardButton(f"⏱️ Auto Delete: {delete_time if delete_time else 'Off'} detik", callback_data='set_delete_time')],
+            [InlineKeyboardButton(f"⏸️ Mode Jeda: {'Aktif' if is_paused else 'Nonaktif'}", callback_data='toggle_pause')],
+            [InlineKeyboardButton(f"🔗 Force Sub: {'Aktif' if fsub_enabled else 'Nonaktif'}", callback_data='toggle_fsub')],
+            [
+                InlineKeyboardButton(f"Teks: {text_mode}", callback_data='toggle_text_mode'),
+                InlineKeyboardButton(f"Foto: {photo_mode}", callback_data='toggle_photo_mode')
+            ],
+            [
+                InlineKeyboardButton(f"Stiker: {sticker_mode}", callback_data='toggle_sticker_mode'),
+                InlineKeyboardButton(f"Dokumen: {doc_mode}", callback_data='toggle_doc_mode')
+            ],
+            [InlineKeyboardButton("🔙 Tutup Pengaturan", callback_data='close_settings')]
+        ]
+        
+        # Improved settings text with better formatting
+        settings_text = (
+            f"⚙️ <b>PENGATURAN BOT</b> @{self.username}\n"
+            "━━━━━━━━━━━━━━━━━━\n"
+            f"📝 <b>Pesan Welcome:</b>\n<code>{html.escape(welcome_text[:60])}{'...' if len(welcome_text) > 60 else ''}</code>\n\n"
+            f"📩 <b>Auto Reply:</b>\n<code>{html.escape(auto_reply[:60])}{'...' if len(auto_reply) > 60 else ''}</code>\n\n"
+            f"📢 <b>Channel Terhubung:</b> <code>{channel if channel else 'Tidak ada'}</code>\n"
+            f"⏱️ <b>Auto Delete:</b> <code>{delete_time if delete_time else 'Off'} detik</code>\n\n"
+            "🛠️ <b>Status Fitur:</b>\n"
+            f"- Teks: <b>{text_mode}</b>\n"
+            f"- Foto: <b>{photo_mode}</b>\n"
+            f"- Stiker: <b>{sticker_mode}</b>\n"
+            f"- Dokumen: <b>{doc_mode}</b>\n\n"
+            "🔧 Silakan pilih opsi di bawah:"
+        )
+        
+        # Edit message if it's a callback query, otherwise send new message
+        if update.callback_query:
+            update.callback_query.edit_message_text(
+                settings_text,
+                parse_mode='HTML',
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+        else:
+            message.reply_text(
+                settings_text,
+                parse_mode='HTML',
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+      
 		  
     def button_handler(self, update: Update, context: CallbackContext):
         """Handle inline button presses"""
