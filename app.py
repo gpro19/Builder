@@ -1,4 +1,3 @@
-
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -13,6 +12,10 @@ import re
 from flask import Flask, request, jsonify
 import os
 import html
+import threading
+import time
+
+
 
 app = Flask(__name__)
 
@@ -173,7 +176,7 @@ class AnonymousBot:
      
         # Improved settings text with better formatting
         settings_text = (
-            f"⚙️ <b>PENGATURAN BOT</b> @{self.username}\n"
+            f"⚙️ <b>PENGATURAN BOT @{self.username}</b>\n"
             "━━━━━━━━━━━━━━━━━━\n"
             f"📝 <b>Pesan Welcome:</b>\n<code>{html.escape(welcome_text[:60])}{'...' if len(welcome_text) > 60 else ''}</code>\n\n"
             f"📩 <b>Auto Reply:</b>\n<code>{html.escape(auto_reply[:60])}{'...' if len(auto_reply) > 60 else ''}</code>\n\n"
@@ -349,7 +352,7 @@ class AnonymousBot:
             # Show instructions to change channel
             query.edit_message_text(
                 f"📢 <b>Ganti Channel</b>\n\n"
-                f"1. Tambahkan @{bot_username} ke channel baru sebagai admin\n"
+                f"1. Tambahkan @{self.username} ke channel baru sebagai admin\n"
                 f"2. Kirim pesan apapun di channel tersebut\n"
                 f"3. Teruskan pesan tersebut ke bot ini\n\n"
                 "Channel lama akan otomatis diganti.",
@@ -614,29 +617,25 @@ class AnonymousBot:
             logger.error(f"Failed to log message: {e}")
 
     def _auto_delete(self, chat_id: str, message_id: int):
-        """Auto-delete message after delay if enabled"""
+        """Auto-delete message after delay using time.sleep (threaded)"""
         delay = user_db.get(f'del_{self.username}')
-        if not delay:
+        if not delay or not delay.isdigit():
             return
-        
-        try:
-            delay_seconds = int(delay)
-            
-            def delete_message():
-                try:
-                    self.updater.bot.delete_message(chat_id, message_id)
-                except Exception as e:
-                    logger.error(f"Failed to auto-delete message: {e}")
-            
-            # Schedule deletion
-            self.updater.job_queue.run_once(
-                lambda _: delete_message(),
-                delay_seconds
-            )
-        except Exception as e:
-            logger.error(f"Error scheduling auto-delete: {e}")
 
+        delay_seconds = int(delay)
 
+        def delete_message():
+            try:
+                time.sleep(delay_seconds)  # Tunggu sesuai delay
+                self.updater.bot.delete_message(chat_id, message_id)
+                logger.info(f"✅ Pesan {message_id} dihapus setelah {delay_seconds} detik")
+            except Exception as e:
+                logger.error(f"❌ Gagal menghapus pesan: {e}")
+
+        # Jalankan di thread terpisah agar tidak memblokir bot
+        threading.Thread(target=delete_message, daemon=True).start()
+
+    
 
 class BotManager:
     """Manager for creating and managing anonymous bots"""
@@ -961,7 +960,7 @@ def setup_telegram_bot():
         
         # Initialize bot manager
         bot_manager.set_main_bot(updater)
-        logger.info("Bot setup completed")
+        logger.info("Bot setup Selesai")
         
         return updater
     except Exception as e:
