@@ -144,24 +144,35 @@ class AnonymousBot:
         sticker_mode = "✅ Aktif" if not user_db.get(f'modeSticker_{self.username}') else "❌ Nonaktif"
         doc_mode = "✅ Aktif" if not user_db.get(f'modeBerkas_{self.username}') else "❌ Nonaktif"
         
+   
         # Button layout
-        keyboard = [
-            [InlineKeyboardButton("✏️ Edit Pesan Welcome", callback_data='set_welcome')],
-            [InlineKeyboardButton("💬 Edit Auto Reply", callback_data='set_autoreply')],
-            [InlineKeyboardButton("📢 Set Channel", callback_data='set_channel' if not channel else 'manage_channel')],
-            [InlineKeyboardButton(f"⏱️ Auto Delete: {delete_time if delete_time else 'Off'} detik", callback_data='set_delete_time')],
-            [InlineKeyboardButton(f"⏸️ Mode Jeda: {'Aktif' if is_paused else 'Nonaktif'}", callback_data='toggle_pause')],
-            [InlineKeyboardButton(f"🔗 Force Sub: {'Aktif' if fsub_enabled else 'Nonaktif'}", callback_data='toggle_fsub')],
-            [
-                InlineKeyboardButton(f"Teks: {text_mode}", callback_data='toggle_text_mode'),
-                InlineKeyboardButton(f"Foto: {photo_mode}", callback_data='toggle_photo_mode')
-            ],
-            [
-                InlineKeyboardButton(f"Stiker: {sticker_mode}", callback_data='toggle_sticker_mode'),
-                InlineKeyboardButton(f"Dokumen: {doc_mode}", callback_data='toggle_doc_mode')
-            ],
-            [InlineKeyboardButton("🔙 Tutup Pengaturan", callback_data='close_settings')]
-        ]
+		keyboard = [
+		    [InlineKeyboardButton("✏️ Edit Pesan Welcome", callback_data='set_welcome')],
+		    [InlineKeyboardButton("💬 Edit Auto Reply", callback_data='set_autoreply')],
+		]
+		
+		# Tambahkan tombol khusus untuk channel
+		if channel:
+		    keyboard.append([InlineKeyboardButton("📢 Kelola Channel", callback_data='manage_channel')])
+		else:
+		    keyboard.append([InlineKeyboardButton("📢 Set Channel", callback_data='set_channel')])
+		
+		# Lanjutkan dengan tombol lainnya
+		keyboard.extend([
+		    [InlineKeyboardButton(f"⏱️ Auto Delete: {delete_time if delete_time else 'Off'} detik", callback_data='set_delete_time')],
+		    [InlineKeyboardButton(f"⏸️ Mode Jeda: {'Aktif' if is_paused else 'Nonaktif'}", callback_data='toggle_pause')],
+		    [InlineKeyboardButton(f"🔗 Force Sub: {'Aktif' if fsub_enabled else 'Nonaktif'}", callback_data='toggle_fsub')],
+		    [
+		        InlineKeyboardButton(f"Teks: {text_mode}", callback_data='toggle_text_mode'),
+		        InlineKeyboardButton(f"Foto: {photo_mode}", callback_data='toggle_photo_mode')
+		    ],
+		    [
+		        InlineKeyboardButton(f"Stiker: {sticker_mode}", callback_data='toggle_sticker_mode'),
+		        InlineKeyboardButton(f"Dokumen: {doc_mode}", callback_data='toggle_doc_mode')
+		    ],
+		    [InlineKeyboardButton("🔙 Tutup Pengaturan", callback_data='close_settings')]
+		])
+
         
         # Improved settings text with better formatting
         settings_text = (
@@ -311,7 +322,31 @@ class AnonymousBot:
                     reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Kembali", callback_data='back_to_settings')]])
                 )
                 user_db[f'editing_{bot_username}'] = 'connect_channel'
-        
+        elif action_type == 'manage_channel':
+		    current_channel = user_db.get(f'channel_{self.username}')
+		    try:
+		        channel_info = self.updater.bot.get_chat(current_channel)
+		        channel_name = channel_info.title
+		        channel_link = f"t.me/{channel_info.username}" if channel_info.username else f"ID: {current_channel}"
+		        
+		        query.edit_message_text(
+		            f"📢 <b>Kelola Channel</b>\n\n"
+		            f"Channel saat ini:\n{channel_name}\n{channel_link}\n\n"
+		            "Silakan pilih aksi:",
+		            parse_mode='HTML',
+		            reply_markup=InlineKeyboardMarkup([
+		                [InlineKeyboardButton("🔄 Ganti Channel", callback_data='change_channel')],
+		                [InlineKeyboardButton("❌ Putuskan Channel", callback_data='disconnect_channel')],
+		                [InlineKeyboardButton("🔙 Kembali", callback_data='back_to_settings')]
+		            ])
+		        )
+		    except Exception as e:
+		        logger.error(f"Error getting channel info: {e}")
+		        query.edit_message_text(
+		            "❌ Gagal mendapatkan info channel. Channel mungkin sudah dihapus.",
+		            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Kembali", callback_data='back_to_settings')]])
+		        )
+		        
         elif action_type == 'change_channel':
             # Show instructions to change channel
             query.edit_message_text(
