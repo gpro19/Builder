@@ -251,8 +251,8 @@ class AnonymousBot:
         elif action_type == 'doc_mode':
             current = user_db.get(f'modeBerkas_{bot_username}')
             user_db[f'modeBerkas_{bot_username}'] = 'nonaktif' if not current else None
-    
-    def _handle_set_action(self, query, action_type):
+  
+  def _handle_set_action(self, query, action_type):
         """Handle set actions (welcome, autoreply, channel, delete time)"""
         bot_username = self.username
         
@@ -320,31 +320,32 @@ class AnonymousBot:
                     reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Kembali", callback_data='back_to_settings')]])
                 )
                 user_db[f'editing_{bot_username}'] = 'connect_channel'
+        
         elif action_type == 'manage_channel':
-		    current_channel = user_db.get(f'channel_{self.username}')
-		    try:
-		        channel_info = self.updater.bot.get_chat(current_channel)
-		        channel_name = channel_info.title
-		        channel_link = f"t.me/{channel_info.username}" if channel_info.username else f"ID: {current_channel}"
-		        
-		        query.edit_message_text(
-		            f"📢 <b>Kelola Channel</b>\n\n"
-		            f"Channel saat ini:\n{channel_name}\n{channel_link}\n\n"
-		            "Silakan pilih aksi:",
-		            parse_mode='HTML',
-		            reply_markup=InlineKeyboardMarkup([
-		                [InlineKeyboardButton("🔄 Ganti Channel", callback_data='change_channel')],
-		                [InlineKeyboardButton("❌ Putuskan Channel", callback_data='disconnect_channel')],
-		                [InlineKeyboardButton("🔙 Kembali", callback_data='back_to_settings')]
-		            ])
-		        )
-		    except Exception as e:
-		        logger.error(f"Error getting channel info: {e}")
-		        query.edit_message_text(
-		            "❌ Gagal mendapatkan info channel. Channel mungkin sudah dihapus.",
-		            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Kembali", callback_data='back_to_settings')]])
-		        )
-		        
+            current_channel = user_db.get(f'channel_{self.username}')
+            try:
+                channel_info = self.updater.bot.get_chat(current_channel)
+                channel_name = channel_info.title
+                channel_link = f"t.me/{channel_info.username}" if channel_info.username else f"ID: {current_channel}"
+                
+                query.edit_message_text(
+                    f"📢 <b>Kelola Channel</b>\n\n"
+                    f"Channel saat ini:\n{channel_name}\n{channel_link}\n\n"
+                    "Silakan pilih aksi:",
+                    parse_mode='HTML',
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton("🔄 Ganti Channel", callback_data='change_channel')],
+                        [InlineKeyboardButton("❌ Putuskan Channel", callback_data='disconnect_channel')],
+                        [InlineKeyboardButton("🔙 Kembali", callback_data='back_to_settings')]
+                    ])
+                )
+            except Exception as e:
+                logger.error(f"Error getting channel info: {e}")
+                query.edit_message_text(
+                    "❌ Gagal mendapatkan info channel. Channel mungkin sudah dihapus.",
+                    reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Kembali", callback_data='back_to_settings')]])
+                )
+                
         elif action_type == 'change_channel':
             # Show instructions to change channel
             query.edit_message_text(
@@ -398,6 +399,7 @@ class AnonymousBot:
                     f"⏱️ Auto-delete diaktifkan ({time_seconds} detik)",
                     reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Kembali", callback_data='back_to_settings')]])
                 )
+    
     
     def message_handler(self, update: Update, context: CallbackContext):
         """Handle all incoming messages"""
