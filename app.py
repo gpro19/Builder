@@ -117,7 +117,6 @@ class AnonymousBot:
                 return False
         return True
     
-  
     def settings(self, update: Update, context: CallbackContext):
         """Handle /settings command (admin only)"""
         # Get the appropriate message object (works for both commands and callback queries)
@@ -194,7 +193,6 @@ class AnonymousBot:
                 reply_markup=InlineKeyboardMarkup(keyboard)
             )
       
-		  
     def button_handler(self, update: Update, context: CallbackContext):
         """Handle inline button presses"""
         query = update.callback_query
@@ -244,132 +242,130 @@ class AnonymousBot:
         elif action_type == 'doc_mode':
             current = user_db.get(f'modeBerkas_{bot_username}')
             user_db[f'modeBerkas_{bot_username}'] = 'nonaktif' if not current else None
-
-	def _handle_set_action(self, query, action_type):
-		    """Handle set actions (welcome, autoreply, channel, delete time)"""
-		    bot_username = self.username
-		    
-		    if action_type == 'welcome':
-		        current_text = user_db.get(f'startText_{bot_username}', 
-		                                 "Halo! Selamat datang di bot menfes anonim.")
-		        query.edit_message_text(
-		            f"📝 <b>Set Pesan Welcome</b>\n\nPesan saat ini:\n<code>{html.escape(current_text)}</code>\n\n"
-		            "Kirim pesan baru untuk mengganti:",
-		            parse_mode='HTML',
-		            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Kembali", callback_data='back_to_settings')]])
-		        )
-		        user_db[f'editing_{bot_username}'] = 'start_text'
-		    
-		    elif action_type == 'autoreply':
-		        current_text = user_db.get(f'kirimText_{bot_username}', "Pesan berhasil terkirim!")
-		        query.edit_message_text(
-		            f"📩 <b>Set Pesan Auto Reply</b>\n\nPesan saat ini:\n<code>{html.escape(current_text)}</code>\n\n"
-		            "Kirim pesan baru untuk mengganti:",
-		            parse_mode='HTML',
-		            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Kembali", callback_data='back_to_settings')]])
-		        )
-		        user_db[f'editing_{bot_username}'] = 'auto_reply'
-		    
-		    elif action_type == 'channel':
-		        # Check if channel is already set
-		        current_channel = user_db.get(f'channel_{bot_username}')
-		        
-		        if current_channel:
-		            # Show channel management options
-		            try:
-		                channel_info = self.updater.bot.get_chat(current_channel)
-		                channel_name = channel_info.title
-		                channel_link = f"t.me/{channel_info.username}" if channel_info.username else f"ID: {current_channel}"
-		                
-		                query.edit_message_text(
-		                    f"📢 <b>Channel Settings</b>\n\n"
-		                    f"Channel saat ini:\n{channel_name}\n{channel_link}\n\n"
-		                    "Silakan pilih aksi:",
-		                    parse_mode='HTML',
-		                    reply_markup=InlineKeyboardMarkup([
-		                        [InlineKeyboardButton("🔄 Ganti Channel", callback_data='change_channel')],
-		                        [InlineKeyboardButton("❌ Putuskan Channel", callback_data='disconnect_channel')],
-		                        [InlineKeyboardButton("🔙 Kembali", callback_data='back_to_settings')]
-		                    ])
-		                )
-		            except Exception as e:
-		                logger.error(f"Error getting channel info: {e}")
-		                query.edit_message_text(
-		                    "❌ Gagal mendapatkan info channel. Channel mungkin sudah dihapus.",
-		                    reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Kembali", callback_data='back_to_settings')]])
-		                )
-		        else:
-		            # Show instructions to connect channel
-		            query.edit_message_text(
-		                f"📢 <b>Connect Channel</b>\n\n"
-		                "1. Tambahkan @{bot_username} ke channel Anda sebagai admin (dengan izin posting)\n"
-		                "2. Kirim pesan apapun di channel tersebut\n"
-		                "3. Teruskan pesan tersebut ke bot ini\n\n"
-		                "Pastikan bot memiliki izin:\n"
-		                "- Kirim pesan\n"
-		                "- Lihat pesan\n"
-		                "- Hapus pesan (jika auto-delete diaktifkan)",
-		                parse_mode='HTML',
-		                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Kembali", callback_data='back_to_settings')]])
-		            )
-		            user_db[f'editing_{bot_username}'] = 'connect_channel'
-		    
-		    elif action_type == 'change_channel':
-		        # Show instructions to change channel
-		        query.edit_message_text(
-		            f"📢 <b>Ganti Channel</b>\n\n"
-		            "1. Tambahkan @{bot_username} ke channel baru sebagai admin\n"
-		            "2. Kirim pesan apapun di channel tersebut\n"
-		            "3. Teruskan pesan tersebut ke bot ini\n\n"
-		            "Channel lama akan otomatis diganti.",
-		            parse_mode='HTML',
-		            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Kembali", callback_data='back_to_settings')]])
-		        )
-		        user_db[f'editing_{bot_username}'] = 'connect_channel'
-		    
-		    elif action_type == 'disconnect_channel':
-		        user_db.pop(f'channel_{bot_username}', None)
-		        query.edit_message_text(
-		            "✅ Channel berhasil diputuskan. Pesan akan dikirim ke admin bot.",
-		            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Kembali", callback_data='back_to_settings')]])
-		        )
-		    
-		    elif action_type == 'delete_time':
-		        current_time = user_db.get(f'del_{bot_username}')
-		        keyboard = [
-		            [InlineKeyboardButton("5 detik", callback_data='set_delete_5')],
-		            [InlineKeyboardButton("10 detik", callback_data='set_delete_10')],
-		            [InlineKeyboardButton("30 detik", callback_data='set_delete_30')],
-		            [InlineKeyboardButton("1 menit", callback_data='set_delete_60')],
-		            [InlineKeyboardButton("5 menit", callback_data='set_delete_300')],
-		            [InlineKeyboardButton("Nonaktifkan", callback_data='set_delete_0')],
-		            [InlineKeyboardButton("🔙 Kembali", callback_data='back_to_settings')]
-		        ]
-		        
-		        query.edit_message_text(
-		            f"⏱️ <b>Set Waktu Hapus Otomatis</b>\n\n"
-		            f"Saat ini: {current_time if current_time else 'Nonaktif'}",
-		            parse_mode='HTML',
-		            reply_markup=InlineKeyboardMarkup(keyboard)
-		        )
-		    
-		    elif action_type.startswith('delete_'):
-		        time_seconds = action_type.split('_')[1]
-		        if time_seconds == '0':
-		            user_db.pop(f'del_{bot_username}', None)
-		            query.edit_message_text(
-		                "⏱️ Auto-delete dinonaktifkan",
-		                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Kembali", callback_data='back_to_settings')]])
-		            )
-		        else:
-		            user_db[f'del_{bot_username}'] = time_seconds
-		            query.edit_message_text(
-		                f"⏱️ Auto-delete diaktifkan ({time_seconds} detik)",
-		                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Kembali", callback_data='back_to_settings')]])
-		            )
-		
-		    
-	    
+    
+    def _handle_set_action(self, query, action_type):
+        """Handle set actions (welcome, autoreply, channel, delete time)"""
+        bot_username = self.username
+        
+        if action_type == 'welcome':
+            current_text = user_db.get(f'startText_{bot_username}', 
+                                     "Halo! Selamat datang di bot menfes anonim.")
+            query.edit_message_text(
+                f"📝 <b>Set Pesan Welcome</b>\n\nPesan saat ini:\n<code>{html.escape(current_text)}</code>\n\n"
+                "Kirim pesan baru untuk mengganti:",
+                parse_mode='HTML',
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Kembali", callback_data='back_to_settings')]])
+            )
+            user_db[f'editing_{bot_username}'] = 'start_text'
+        
+        elif action_type == 'autoreply':
+            current_text = user_db.get(f'kirimText_{bot_username}', "Pesan berhasil terkirim!")
+            query.edit_message_text(
+                f"📩 <b>Set Pesan Auto Reply</b>\n\nPesan saat ini:\n<code>{html.escape(current_text)}</code>\n\n"
+                "Kirim pesan baru untuk mengganti:",
+                parse_mode='HTML',
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Kembali", callback_data='back_to_settings')]])
+            )
+            user_db[f'editing_{bot_username}'] = 'auto_reply'
+        
+        elif action_type == 'channel':
+            # Check if channel is already set
+            current_channel = user_db.get(f'channel_{bot_username}')
+            
+            if current_channel:
+                # Show channel management options
+                try:
+                    channel_info = self.updater.bot.get_chat(current_channel)
+                    channel_name = channel_info.title
+                    channel_link = f"t.me/{channel_info.username}" if channel_info.username else f"ID: {current_channel}"
+                    
+                    query.edit_message_text(
+                        f"📢 <b>Channel Settings</b>\n\n"
+                        f"Channel saat ini:\n{channel_name}\n{channel_link}\n\n"
+                        "Silakan pilih aksi:",
+                        parse_mode='HTML',
+                        reply_markup=InlineKeyboardMarkup([
+                            [InlineKeyboardButton("🔄 Ganti Channel", callback_data='change_channel')],
+                            [InlineKeyboardButton("❌ Putuskan Channel", callback_data='disconnect_channel')],
+                            [InlineKeyboardButton("🔙 Kembali", callback_data='back_to_settings')]
+                        ])
+                    )
+                except Exception as e:
+                    logger.error(f"Error getting channel info: {e}")
+                    query.edit_message_text(
+                        "❌ Gagal mendapatkan info channel. Channel mungkin sudah dihapus.",
+                        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Kembali", callback_data='back_to_settings')]])
+                    )
+            else:
+                # Show instructions to connect channel
+                query.edit_message_text(
+                    f"📢 <b>Connect Channel</b>\n\n"
+                    "1. Tambahkan @{bot_username} ke channel Anda sebagai admin (dengan izin posting)\n"
+                    "2. Kirim pesan apapun di channel tersebut\n"
+                    "3. Teruskan pesan tersebut ke bot ini\n\n"
+                    "Pastikan bot memiliki izin:\n"
+                    "- Kirim pesan\n"
+                    "- Lihat pesan\n"
+                    "- Hapus pesan (jika auto-delete diaktifkan)",
+                    parse_mode='HTML',
+                    reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Kembali", callback_data='back_to_settings')]])
+                )
+                user_db[f'editing_{bot_username}'] = 'connect_channel'
+        
+        elif action_type == 'change_channel':
+            # Show instructions to change channel
+            query.edit_message_text(
+                f"📢 <b>Ganti Channel</b>\n\n"
+                "1. Tambahkan @{bot_username} ke channel baru sebagai admin\n"
+                "2. Kirim pesan apapun di channel tersebut\n"
+                "3. Teruskan pesan tersebut ke bot ini\n\n"
+                "Channel lama akan otomatis diganti.",
+                parse_mode='HTML',
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Kembali", callback_data='back_to_settings')]])
+            )
+            user_db[f'editing_{bot_username}'] = 'connect_channel'
+        
+        elif action_type == 'disconnect_channel':
+            user_db.pop(f'channel_{bot_username}', None)
+            query.edit_message_text(
+                "✅ Channel berhasil diputuskan. Pesan akan dikirim ke admin bot.",
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Kembali", callback_data='back_to_settings')]])
+            )
+        
+        elif action_type == 'delete_time':
+            current_time = user_db.get(f'del_{bot_username}')
+            keyboard = [
+                [InlineKeyboardButton("5 detik", callback_data='set_delete_5')],
+                [InlineKeyboardButton("10 detik", callback_data='set_delete_10')],
+                [InlineKeyboardButton("30 detik", callback_data='set_delete_30')],
+                [InlineKeyboardButton("1 menit", callback_data='set_delete_60')],
+                [InlineKeyboardButton("5 menit", callback_data='set_delete_300')],
+                [InlineKeyboardButton("Nonaktifkan", callback_data='set_delete_0')],
+                [InlineKeyboardButton("🔙 Kembali", callback_data='back_to_settings')]
+            ]
+            
+            query.edit_message_text(
+                f"⏱️ <b>Set Waktu Hapus Otomatis</b>\n\n"
+                f"Saat ini: {current_time if current_time else 'Nonaktif'}",
+                parse_mode='HTML',
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+        
+        elif action_type.startswith('delete_'):
+            time_seconds = action_type.split('_')[1]
+            if time_seconds == '0':
+                user_db.pop(f'del_{bot_username}', None)
+                query.edit_message_text(
+                    "⏱️ Auto-delete dinonaktifkan",
+                    reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Kembali", callback_data='back_to_settings')]])
+                )
+            else:
+                user_db[f'del_{bot_username}'] = time_seconds
+                query.edit_message_text(
+                    f"⏱️ Auto-delete diaktifkan ({time_seconds} detik)",
+                    reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Kembali", callback_data='back_to_settings')]])
+                )
+    
     def message_handler(self, update: Update, context: CallbackContext):
         """Handle all incoming messages"""
         message = update.message
@@ -401,70 +397,68 @@ class AnonymousBot:
         elif message.text and not message.text.startswith('/') and not user_db.get(f'modeText_{self.username}'):
             self.handle_text(update, context)
     
-    
     def _handle_admin_settings(self, update: Update, context: CallbackContext):
-    """Handle admin setting updates"""
-    message = update.message
-    setting_type = user_db.get(f'editing_{self.username}')
-    
-    if setting_type == 'start_text':
-        user_db[f'startText_{self.username}'] = message.text
-        user_db.pop(f'editing_{self.username}', None)
-        update.message.reply_text("✅ Pesan welcome berhasil diupdate!")
-    
-    elif setting_type == 'auto_reply':
-        user_db[f'kirimText_{self.username}'] = message.text
-        user_db.pop(f'editing_{self.username}', None)
-        update.message.reply_text("✅ Pesan auto reply berhasil diupdate!")
-    
-    elif setting_type == 'connect_channel' and message.forward_from_chat:
-        if message.forward_from_chat.type == 'channel':
-            try:
-                # Check if bot is admin in channel
-                bot_member = self.updater.bot.get_chat_member(
-                    message.forward_from_chat.id,
-                    self.updater.bot.id
-                )
-                if bot_member.status in ['administrator', 'creator']:
-                    # Verify bot permissions
-                    if not (bot_member.can_post_messages and bot_member.can_delete_messages):
+        """Handle admin setting updates"""
+        message = update.message
+        setting_type = user_db.get(f'editing_{self.username}')
+        
+        if setting_type == 'start_text':
+            user_db[f'startText_{self.username}'] = message.text
+            user_db.pop(f'editing_{self.username}', None)
+            update.message.reply_text("✅ Pesan welcome berhasil diupdate!")
+        
+        elif setting_type == 'auto_reply':
+            user_db[f'kirimText_{self.username}'] = message.text
+            user_db.pop(f'editing_{self.username}', None)
+            update.message.reply_text("✅ Pesan auto reply berhasil diupdate!")
+        
+        elif setting_type == 'connect_channel' and message.forward_from_chat:
+            if message.forward_from_chat.type == 'channel':
+                try:
+                    # Check if bot is admin in channel
+                    bot_member = self.updater.bot.get_chat_member(
+                        message.forward_from_chat.id,
+                        self.updater.bot.id
+                    )
+                    if bot_member.status in ['administrator', 'creator']:
+                        # Verify bot permissions
+                        if not (bot_member.can_post_messages and bot_member.can_delete_messages):
+                            update.message.reply_text(
+                                "❌ Bot membutuhkan izin:\n"
+                                "- Kirim pesan\n"
+                                "- Hapus pesan (untuk fitur auto-delete)\n\n"
+                                "Silakan berikan izin tersebut dan coba lagi."
+                            )
+                            return
+                        
+                        user_db[f'channel_{self.username}'] = str(message.forward_from_chat.id)
+                        user_db.pop(f'editing_{self.username}', None)
+                        
+                        # Get channel info for confirmation
+                        channel_info = self.updater.bot.get_chat(message.forward_from_chat.id)
+                        channel_name = channel_info.title
+                        channel_link = f"t.me/{channel_info.username}" if channel_info.username else f"ID: {message.forward_from_chat.id}"
+                        
                         update.message.reply_text(
-                            "❌ Bot membutuhkan izin:\n"
-                            "- Kirim pesan\n"
-                            "- Hapus pesan (untuk fitur auto-delete)\n\n"
-                            "Silakan berikan izin tersebut dan coba lagi."
+                            f"✅ Channel berhasil terhubung!\n\n"
+                            f"📢 <b>{channel_name}</b>\n"
+                            f"🔗 {channel_link}\n\n"
+                            "Pesan anonim akan dikirim ke channel ini.",
+                            parse_mode='HTML'
                         )
-                        return
-                    
-                    user_db[f'channel_{self.username}'] = str(message.forward_from_chat.id)
-                    user_db.pop(f'editing_{self.username}', None)
-                    
-                    # Get channel info for confirmation
-                    channel_info = self.updater.bot.get_chat(message.forward_from_chat.id)
-                    channel_name = channel_info.title
-                    channel_link = f"t.me/{channel_info.username}" if channel_info.username else f"ID: {message.forward_from_chat.id}"
-                    
+                    else:
+                        update.message.reply_text(
+                            "❌ Bot harus menjadi admin di channel tersebut!\n\n"
+                            "Pastikan Anda:\n"
+                            "1. Menambahkan @{self.username} sebagai admin\n"
+                            "2. Memberikan izin posting dan hapus pesan"
+                        )
+                except Exception as e:
+                    logger.error(f"Error connecting channel: {e}")
                     update.message.reply_text(
-                        f"✅ Channel berhasil terhubung!\n\n"
-                        f"📢 <b>{channel_name}</b>\n"
-                        f"🔗 {channel_link}\n\n"
-                        "Pesan anonim akan dikirim ke channel ini.",
-                        parse_mode='HTML'
+                        "❌ Gagal memverifikasi bot sebagai admin channel.\n"
+                        "Pastikan bot sudah ditambahkan sebagai admin dengan izin yang cukup."
                     )
-                else:
-                    update.message.reply_text(
-                        "❌ Bot harus menjadi admin di channel tersebut!\n\n"
-                        "Pastikan Anda:\n"
-                        "1. Menambahkan @{self.username} sebagai admin\n"
-                        "2. Memberikan izin posting dan hapus pesan"
-                    )
-            except Exception as e:
-                logger.error(f"Error connecting channel: {e}")
-                update.message.reply_text(
-                    "❌ Gagal memverifikasi bot sebagai admin channel.\n"
-                    "Pastikan bot sudah ditambahkan sebagai admin dengan izin yang cukup."
-                )
-
 
     def handle_photo(self, update: Update, context: CallbackContext):
         """Handle photo messages"""
@@ -750,7 +744,7 @@ def handle_forwarded_message(update: Update, context: CallbackContext):
     success, message = bot_manager.create_bot(token, user.id)
     
     update.message.reply_html(
-        f"<i>🔄 Sedang membuat bot...</i>\n\n{message}",
+        f"🔄 Sedang membuat bot...</i>\n\n{message}",
         reply_to_message_id=update.message.message_id
     )
     
