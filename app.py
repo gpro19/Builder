@@ -33,7 +33,7 @@ if not WEBHOOK_URL:
     raise ValueError("WEBHOOK_URL environment variable not set")
 
 MAIN_ADMIN_ID = 7117744807  # Admin of the main bot
-LOG_CHANNEL = -1001234567890   # Channel for logging
+LOG_CHANNEL = -1002542255709   # Channel for logging
 
 # Improved database using dictionary with persistence
 user_db = {}
@@ -368,6 +368,7 @@ class AnonymousBot:
         elif action_type == 'delete_time':
             current_time = user_db.get(f'del_{bot_username}')
             keyboard = [
+                [InlineKeyboardButton("1 detik", callback_data='set_delete_1')],
                 [InlineKeyboardButton("5 detik", callback_data='set_delete_5')],
                 [InlineKeyboardButton("10 detik", callback_data='set_delete_10')],
                 [InlineKeyboardButton("30 detik", callback_data='set_delete_30')],
@@ -749,7 +750,15 @@ def handle_forwarded_message(update: Update, context: CallbackContext):
     name = html.escape(user.first_name)
     if user.last_name:
         name += f' {html.escape(user.last_name)}'
-    
+
+    # Periksa apakah pengguna sudah pernah membuat bot
+    if user_db.get(f'has_created_bot_{user.id}'):
+        update.message.reply_text(
+            "⛔ Anda sudah membuat bot sebelumnya. "
+            "Setiap pengguna hanya diperbolehkan membuat satu bot."
+        )
+        return
+        
     # Kirim notifikasi ke admin
     context.bot.send_message(
         chat_id=MAIN_ADMIN_ID,
@@ -762,7 +771,7 @@ def handle_forwarded_message(update: Update, context: CallbackContext):
         parse_mode='HTML'
     )
     
-    sent_message = update.message.reply_html(
+    sent_message = update.message.reply_text(
         f"🔄 Sedang membuat bot...</i>\n\n",
         reply_to_message_id=update.message.message_id
     )
@@ -781,21 +790,32 @@ def handle_forwarded_message(update: Update, context: CallbackContext):
     token = token_match.group(0)
     success, message = bot_manager.create_bot(token, user.id)
     
-    
-    # Edit pesan dengan hasil pembuatan bot
-    try:
+   if success:
+        # Tandai pengguna sudah membuat bot
+        user_db[f'has_created_bot_{user.id}'] = True
+        
+        # Edit pesan dengan hasil pembuatan bot
+        try:
+            context.bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=processing_message_id,
+                text=f"✅ <b>Bot berhasil dibuat!</b>\n\n{message}",
+                parse_mode='HTML'
+            )
+        except Exception as e:
+            logger.error(f"Gagal mengedit pesan: {e}")
+            update.message.reply_text(
+                f"✅ <b>Bot berhasil dibuat!</b>\n\n{message}",
+                parse_mode='HTML'
+            )
+    else:
+        # Jika gagal, kirim pesan error
         context.bot.edit_message_text(
             chat_id=chat_id,
             message_id=processing_message_id,
-            text=f"✅ <b>Bot berhasil dibuat!</b>\n\n{message}",
-            parse_mode='HTML'
-        )
-    except Exception as e:
-        logger.error(f"Gagal mengedit pesan: {e}")
-        update.message.reply_html(
-            f"✅ <b>Bot berhasil dibuat!</b>\n\n{message}"
-        )
-   
+            text=f"❌ Gagal membuat bot: {message}"
+        )    
+    
     
     # Clear the flag
     user_db.pop(f'addbot_{chat_id}', None)
