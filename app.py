@@ -152,7 +152,7 @@ class AnonymousBot:
         
         if channel:
 	        keyboard.append([InlineKeyboardButton("📢 Kelola Channel", callback_data='manage_channel')])
-	    else:
+        else:
 	        keyboard.append([InlineKeyboardButton("📢 Set Channel", callback_data='set_channel')])
 	   
         keyboard.extend([    
