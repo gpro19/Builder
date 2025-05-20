@@ -144,36 +144,34 @@ class AnonymousBot:
         sticker_mode = "✅ Aktif" if not user_db.get(f'modeSticker_{self.username}') else "❌ Nonaktif"
         doc_mode = "✅ Aktif" if not user_db.get(f'modeBerkas_{self.username}') else "❌ Nonaktif"
         
-   
         # Button layout
-		keyboard = [
-		    [InlineKeyboardButton("✏️ Edit Pesan Welcome", callback_data='set_welcome')],
-		    [InlineKeyboardButton("💬 Edit Auto Reply", callback_data='set_autoreply')],
-		]
-		
-		# Tambahkan tombol khusus untuk channel
-		if channel:
-		    keyboard.append([InlineKeyboardButton("📢 Kelola Channel", callback_data='manage_channel')])
-		else:
-		    keyboard.append([InlineKeyboardButton("📢 Set Channel", callback_data='set_channel')])
-		
-		# Lanjutkan dengan tombol lainnya
-		keyboard.extend([
-		    [InlineKeyboardButton(f"⏱️ Auto Delete: {delete_time if delete_time else 'Off'} detik", callback_data='set_delete_time')],
-		    [InlineKeyboardButton(f"⏸️ Mode Jeda: {'Aktif' if is_paused else 'Nonaktif'}", callback_data='toggle_pause')],
-		    [InlineKeyboardButton(f"🔗 Force Sub: {'Aktif' if fsub_enabled else 'Nonaktif'}", callback_data='toggle_fsub')],
-		    [
-		        InlineKeyboardButton(f"Teks: {text_mode}", callback_data='toggle_text_mode'),
-		        InlineKeyboardButton(f"Foto: {photo_mode}", callback_data='toggle_photo_mode')
-		    ],
-		    [
-		        InlineKeyboardButton(f"Stiker: {sticker_mode}", callback_data='toggle_sticker_mode'),
-		        InlineKeyboardButton(f"Dokumen: {doc_mode}", callback_data='toggle_doc_mode')
-		    ],
-		    [InlineKeyboardButton("🔙 Tutup Pengaturan", callback_data='close_settings')]
-		])
-
+        keyboard = [
+            [InlineKeyboardButton("✏️ Edit Pesan Welcome", callback_data='set_welcome')],
+            [InlineKeyboardButton("💬 Edit Auto Reply", callback_data='set_autoreply')],
+        ]    
         
+        if channel:
+	        keyboard.append([InlineKeyboardButton("📢 Kelola Channel", callback_data='manage_channel')])
+	    else:
+	        keyboard.append([InlineKeyboardButton("📢 Set Channel", callback_data='set_channel')])
+	   
+        keyboard.extend([    
+            [InlineKeyboardButton(f"⏱️ Auto Delete: {delete_time if delete_time else 'Off'} detik", callback_data='set_delete_time')],
+            [InlineKeyboardButton(f"⏸️ Mode Jeda: {'Aktif' if is_paused else 'Nonaktif'}", callback_data='toggle_pause')],
+            [InlineKeyboardButton(f"🔗 Force Sub: {'Aktif' if fsub_enabled else 'Nonaktif'}", callback_data='toggle_fsub')],
+            [
+                InlineKeyboardButton(f"Teks: {text_mode}", callback_data='toggle_text_mode'),
+                InlineKeyboardButton(f"Foto: {photo_mode}", callback_data='toggle_photo_mode')
+            ],
+            [
+                InlineKeyboardButton(f"Stiker: {sticker_mode}", callback_data='toggle_sticker_mode'),
+                InlineKeyboardButton(f"Dokumen: {doc_mode}", callback_data='toggle_doc_mode')
+            ],
+            [InlineKeyboardButton("🔙 Tutup Pengaturan", callback_data='close_settings')]
+        ])
+     
+	
+	
         # Improved settings text with better formatting
         settings_text = (
             f"⚙️ <b>PENGATURAN BOT</b> @{self.username}\n"
