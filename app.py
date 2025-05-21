@@ -311,7 +311,7 @@ class AnonymousBot:
                 # Show instructions to connect channel
                 query.edit_message_text(
                     f"📢 <b>Connect Channel</b>\n\n"
-                    "1. Tambahkan @{bot_username} ke channel Anda sebagai admin (dengan izin posting)\n"
+                    f"1. Tambahkan @{self.username} ke channel Anda sebagai admin (dengan izin posting)\n"
                     "2. Kirim pesan apapun di channel tersebut\n"
                     "3. Teruskan pesan tersebut ke bot ini\n\n"
                     "Pastikan bot memiliki izin:\n"
@@ -329,11 +329,17 @@ class AnonymousBot:
                 channel_info = self.updater.bot.get_chat(current_channel)
                 channel_name = channel_info.title
                 channel_link = f"t.me/{channel_info.username}" if channel_info.username else f"ID: {current_channel}"
+
+                text = (
+                    f"📢 <b>Kelola Channel</b>\n\n"
+                    f"🔗 <b>Channel Saat Ini:</b>\n"
+                    f"📝 <b>Nama:</b> {channel_name}\n"
+                    f"🆔 <b>ID:</b> <code>{channel_id}</code>\n\n"
+                    "Silakan pilih aksi:"
+                )
                 
                 query.edit_message_text(
-                    f"📢 <b>Kelola Channel</b>\n\n"
-                    f"Channel saat ini:\n{channel_name}\n{channel_link}\n\n"
-                    "Silakan pilih aksi:",
+                    text,
                     parse_mode='HTML',
                     reply_markup=InlineKeyboardMarkup([
                         [InlineKeyboardButton("🔄 Ganti Channel", callback_data='set_change')],
@@ -362,7 +368,7 @@ class AnonymousBot:
             user_db[f'editing_{bot_username}'] = 'connect_channel'
         
         elif action_type == 'disconnect':
-            user_db.pop(f'channel_{bot_username}', None)
+            user_db.pop(f'channel_{self.username}', None)
             query.edit_message_text(
                 "✅ Channel berhasil diputuskan. Pesan akan dikirim ke admin bot.",
                 reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Kembali", callback_data='back_to_settings')]])
