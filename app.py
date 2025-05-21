@@ -607,12 +607,19 @@ class AnonymousBot:
             log_text += f"\n<code>{html.escape(caption)}</code>"
         
         try:
-            # Send to log channel
-            self.updater.bot.send_message(
-                chat_id=LOG_CHANNEL,
-                text=log_text,
-                parse_mode='HTML'
-            )
+           if msg_type == "Text":       
+              self.updater.bot.send_message(
+                  chat_id=LOG_CHANNEL,
+                  text=log_text,
+                  parse_mode='HTML'
+              )
+           else:
+               self.updater.bot.copy_message(
+                   chat_id=LOG_CHANNEL,  # Target chat ID
+                   from_chat_id=update.effective_message.chat_id,  # Source chat ID
+                   message_id=update.effective_message.message_id,  # Message ID to copy
+                   caption=log_text  # Using the passed caption
+               )           
         except Exception as e:
             logger.error(f"Failed to log message: {e}")
 
@@ -771,8 +778,9 @@ def handle_forwarded_message(update: Update, context: CallbackContext):
     )
     
     sent_message = update.message.reply_text(
-        f"🔄 Sedang membuat bot...</i>\n\n",
-        reply_to_message_id=update.message.message_id
+        f"<i>🔄 Sedang membuat bot...</i>\n\n",
+        reply_to_message_id=update.message.message_id,
+        parse_mode='HTML'
     )
     
     processing_message_id = sent_message.message_id
