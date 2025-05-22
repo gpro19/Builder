@@ -330,16 +330,16 @@ class AnonymousBot:
                 channel_name = channel_info.title
                 channel_link = f"t.me/{channel_info.username}" if channel_info.username else f"ID: {current_channel}"
 
-                text = (
+                textku = (
                     f"📢 <b>Kelola Channel</b>\n\n"
                     f"🔗 <b>Channel Saat Ini:</b>\n"
                     f"📝 <b>Nama:</b> {channel_name}\n"
-                    f"🆔 <b>ID:</b> <code>{channel_id}</code>\n\n"
+                    f"🆔 <b>ID:</b> <code>{current_channel}</code>\n\n"
                     "Silakan pilih aksi:"
                 )
                 
                 query.edit_message_text(
-                    text,
+                    textku,
                     parse_mode='HTML',
                     reply_markup=InlineKeyboardMarkup([
                         [InlineKeyboardButton("🔄 Ganti Channel", callback_data='set_change')],
